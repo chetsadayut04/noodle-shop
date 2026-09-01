@@ -8,3 +8,4 @@ export default async function TablePage({
   const { id } = await params
   return <MenuPage tableId={id.toUpperCase()} />
 }
+

@@ -18,6 +18,7 @@ import {
   Check,
   X,
   TrendingUp,
+  Utensils,
 } from 'lucide-react'
 import {
   BarChart,
@@ -60,11 +61,19 @@ export default function AdminPage() {
   const [tables, setTables] = useState<TableItem[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [orders, setOrders] = useState<Order[]>([])
+  
+  // New Table Form
   const [newTableId, setNewTableId] = useState('')
   const [newTableName, setNewTableName] = useState('')
+
+  // New Menu Item Form
+  const [newItemId, setNewItemId] = useState('')
+  const [newItemName, setNewItemName] = useState('')
+  const [newItemCategory, setNewItemCategory] = useState('guaytiew')
+  const [newItemPrice, setNewItemPrice] = useState('')
+
   const [loading, setLoading] = useState(true)
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
-  const [selectedQrTable, setSelectedQrTable] = useState<string | null>(null)
   const router = useRouter()
 
   const fetchData = async () => {
@@ -123,6 +132,44 @@ export default function AdminPage() {
     }
   }
 
+  const handleAddMenuItem = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newItemName || !newItemPrice) return
+    const id = newItemId.trim() || `item-${Date.now()}`
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('menu_items').insert({
+        id,
+        name: newItemName,
+        category_id: newItemCategory,
+        price: parseFloat(newItemPrice),
+        is_available: true,
+      })
+
+      if (error) throw error
+
+      setNewItemId('')
+      setNewItemName('')
+      setNewItemPrice('')
+      fetchData()
+    } catch (err: any) {
+      console.error('Add menu item error:', err)
+      alert(err.message || 'ไม่สามารถเพิ่มเมนูอาหารได้')
+    }
+  }
+
+  const handleDeleteMenuItem = async (id: string) => {
+    if (!confirm(`ต้องการลบเมนูนี้ใช่หรือไม่?`)) return
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('menu_items').delete().eq('id', id)
+      if (error) throw error
+      fetchData()
+    } catch (err: any) {
+      console.error('Delete menu item error:', err)
+    }
+  }
+
   const toggleTableActive = async (id: string, currentStatus: boolean) => {
     try {
       const supabase = createClient()
@@ -178,7 +225,7 @@ export default function AdminPage() {
 
   const paidOrdersCount = orders.filter((o) => o.status === 'paid').length
 
-  // Revenue chart data grouped by date/hour
+  // Revenue chart data
   const chartDataMap: Record<string, number> = {}
   orders.forEach((o) => {
     if (o.status === 'paid') {
@@ -209,7 +256,7 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">ระบบผู้ดูแลร้าน (Admin Dashboard)</h1>
-            <p className="text-xs text-muted-foreground">สรุปยอดขาย การจัดการโต๊ะ เมนูอาหาร และ Recharts Analytics</p>
+            <p className="text-xs text-muted-foreground">สรุปยอดขาย เพิ่ม/แก้ไขสินค้า จัดการโต๊ะ และ Recharts Analytics</p>
           </div>
         </div>
 
@@ -317,7 +364,7 @@ export default function AdminPage() {
         </section>
       </div>
 
-      {/* Table Management & Menu Available */}
+      {/* Table Management & Menu Item Management */}
       <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Manage Tables (is_active) */}
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
@@ -390,25 +437,87 @@ export default function AdminPage() {
           </ul>
         </section>
 
-        {/* Menu Items Availability (is_available) */}
+        {/* Manage Menu Items (Add & Available Toggle) */}
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
-          <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">จัดการสถานะเมนูอาหาร (is_available)</h2>
-          <ul className="mt-4 divide-y divide-border overflow-y-auto max-h-80">
+          <div className="flex items-center gap-2 border-b border-border pb-3">
+            <Utensils className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-lg font-bold text-card-foreground">จัดการและเพิ่มเมนูสินค้าใหม่ (menu_items)</h2>
+          </div>
+
+          {/* Add Menu Item Form */}
+          <form onSubmit={handleAddMenuItem} className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="รหัสเมนู (เช่น tom-yum-2)"
+                value={newItemId}
+                onChange={(e) => setNewItemId(e.target.value)}
+                className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+              />
+              <input
+                type="text"
+                required
+                placeholder="ชื่อสินค้า (เช่น ก๋วยเตี๋ยวต้มยำพิเศษ)"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={newItemCategory}
+                onChange={(e) => setNewItemCategory(e.target.value)}
+                className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+              >
+                <option value="guaytiew">ก๋วยเตี๋ยว (guaytiew)</option>
+                <option value="khaomangai">ข้าวมันไก่ (khaomangai)</option>
+                <option value="drinks">เครื่องดื่ม (drinks)</option>
+              </select>
+              <input
+                type="number"
+                required
+                min="0"
+                step="1"
+                placeholder="ราคา (บาท)"
+                value={newItemPrice}
+                onChange={(e) => setNewItemPrice(e.target.value)}
+                className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              className="flex w-full items-center justify-center gap-1 rounded-full bg-primary py-2.5 font-display text-xs font-bold text-primary-foreground shadow-xs"
+            >
+              <Plus className="h-4 w-4" /> เพิ่มสินค้าลงในเมนู
+            </button>
+          </form>
+
+          {/* Menu Items List */}
+          <ul className="mt-4 divide-y divide-border overflow-y-auto max-h-64">
             {menuItems.map((item) => (
               <li key={item.id} className="flex items-center justify-between py-2.5 text-xs">
                 <div>
                   <p className="font-semibold text-card-foreground">{item.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{item.price} บาท</p>
+                  <p className="text-[11px] text-muted-foreground">หมวดหมู่: {item.category_id} · {item.price} บาท</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => toggleMenuAvailable(item.id, item.is_available)}
-                  className={`rounded-full px-3 py-1 text-[10px] font-bold ${
-                    item.is_available ? 'bg-emerald-500/15 text-emerald-700' : 'bg-destructive/15 text-destructive'
-                  }`}
-                >
-                  {item.is_available ? 'พร้อมขาย' : 'สินค้าหมด'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleMenuAvailable(item.id, item.is_available)}
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                      item.is_available ? 'bg-emerald-500/15 text-emerald-700' : 'bg-destructive/15 text-destructive'
+                    }`}
+                  >
+                    {item.is_available ? 'พร้อมขาย' : 'สินค้าหมด'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteMenuItem(item.id)}
+                    className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
