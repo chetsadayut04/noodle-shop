@@ -6,11 +6,15 @@ import { MenuCard } from '@/components/menu-card'
 import { FloatingCart } from '@/components/floating-cart'
 import { OrderSummary } from '@/components/order-summary'
 import { PromptPayModal } from '@/components/promptpay-modal'
-import { Receipt } from 'lucide-react'
+import { Receipt, UtensilsCrossed } from 'lucide-react'
 
 type CartEntry = { item: MenuItem; selected: SelectedOptions; quantity: number }
 
-export function MenuPage() {
+type MenuPageProps = {
+  tableId?: string
+}
+
+export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
   const [activeCategory, setActiveCategory] = useState(categories[0].id)
   const [cart, setCart] = useState<Record<string, CartEntry>>({})
   const [summaryOpen, setSummaryOpen] = useState(false)
@@ -50,7 +54,12 @@ export function MenuPage() {
     <main className="mx-auto min-h-dvh w-full max-w-3xl pb-28">
       <header className="flex items-start justify-between gap-4 px-5 pb-4 pt-8">
         <div>
-          <p className="font-display text-sm font-semibold uppercase tracking-widest text-accent-foreground">ครัวริมคลอง</p>
+          <div className="flex items-center gap-2">
+            <span className="font-display text-xs font-semibold uppercase tracking-widest text-accent-foreground">ครัวริมคลอง</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+              <UtensilsCrossed className="h-3 w-3" /> โต๊ะ {tableId}
+            </span>
+          </div>
           <h1 className="mt-1 font-display text-3xl font-bold text-foreground text-balance">ก๋วยเตี๋ยว &amp; ข้าวมันไก่</h1>
           <p className="mt-2 text-pretty text-muted-foreground">รสชาติต้นตำรับ เส้นเหนียวนุ่ม น้ำซุปเข้มข้น พร้อมเสิร์ฟความอร่อยถึงโต๊ะคุณ</p>
         </div>
@@ -110,7 +119,7 @@ export function MenuPage() {
       {checkoutOpen && (
         <PromptPayModal
           totalPrice={totalPrice}
-          tableId="T1"
+          tableId={tableId}
           lines={lines}
           onClose={() => setCheckoutOpen(false)}
           onSuccess={() => {

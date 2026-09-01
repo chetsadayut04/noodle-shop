@@ -14,11 +14,35 @@ import {
   Eye,
   ArrowRight,
   ShieldAlert,
+  QrCode,
+  Check,
+  X,
+  TrendingUp,
 } from 'lucide-react'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts'
 
 type TableItem = {
   id: string
   name: string
+  is_active: boolean
+}
+
+type MenuItem = {
+  id: string
+  category_id: string
+  name: string
+  price: number
+  is_available: boolean
 }
 
 type Order = {
@@ -30,13 +54,17 @@ type Order = {
   payments?: { slip_url: string | null }[]
 }
 
+const COLORS = ['#eab308', '#3b82f6', '#a855f7', '#10b981']
+
 export default function AdminPage() {
   const [tables, setTables] = useState<TableItem[]>([])
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [newTableId, setNewTableId] = useState('')
   const [newTableName, setNewTableName] = useState('')
   const [loading, setLoading] = useState(true)
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
+  const [selectedQrTable, setSelectedQrTable] = useState<string | null>(null)
   const router = useRouter()
 
   const fetchData = async () => {
@@ -50,6 +78,13 @@ export default function AdminPage() {
         .select('*')
         .order('id')
       setTables(tableData || [])
+
+      // Fetch menu_items
+      const { data: menuData } = await supabase
+        .from('menu_items')
+        .select('*')
+        .order('category_id')
+      setMenuItems(menuData || [])
 
       // Fetch orders
       const { data: orderData } = await supabase
@@ -75,7 +110,7 @@ export default function AdminPage() {
       const supabase = createClient()
       const { error } = await supabase
         .from('tables')
-        .insert({ id: newTableId, name: newTableName })
+        .insert({ id: newTableId.toUpperCase(), name: newTableName, is_active: true })
 
       if (error) throw error
 
@@ -85,6 +120,36 @@ export default function AdminPage() {
     } catch (err: any) {
       console.error('Add table error:', err)
       alert(err.message || 'ไม่สามารถเพิ่มโต๊ะได้')
+    }
+  }
+
+  const toggleTableActive = async (id: string, currentStatus: boolean) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('tables')
+        .update({ is_active: !currentStatus })
+        .eq('id', id)
+
+      if (error) throw error
+      fetchData()
+    } catch (err: any) {
+      console.error('Toggle table error:', err)
+    }
+  }
+
+  const toggleMenuAvailable = async (id: string, currentStatus: boolean) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('menu_items')
+        .update({ is_available: !currentStatus })
+        .eq('id', id)
+
+      if (error) throw error
+      fetchData()
+    } catch (err: any) {
+      console.error('Toggle menu error:', err)
     }
   }
 
@@ -113,8 +178,29 @@ export default function AdminPage() {
 
   const paidOrdersCount = orders.filter((o) => o.status === 'paid').length
 
+  // Revenue chart data grouped by date/hour
+  const chartDataMap: Record<string, number> = {}
+  orders.forEach((o) => {
+    if (o.status === 'paid') {
+      const dateKey = new Date(o.created_at).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })
+      chartDataMap[dateKey] = (chartDataMap[dateKey] || 0) + (o.total || 0)
+    }
+  })
+  const revenueChartData = Object.keys(chartDataMap).map((key) => ({
+    date: key,
+    total: chartDataMap[key],
+  })).slice(-7)
+
+  // Status breakdown chart data
+  const statusPieData = [
+    { name: 'รอรับออเดอร์', value: orders.filter((o) => o.status === 'pending').length },
+    { name: 'กำลังทำ', value: orders.filter((o) => o.status === 'preparing').length },
+    { name: 'เสิร์ฟแล้ว', value: orders.filter((o) => o.status === 'served').length },
+    { name: 'ชำระแล้ว', value: orders.filter((o) => o.status === 'paid').length },
+  ].filter((item) => item.value > 0)
+
   return (
-    <main className="min-h-dvh bg-background p-4 sm:p-6">
+    <main className="min-h-dvh bg-background p-4 sm:p-6 pb-20">
       {/* Header */}
       <header className="mx-auto flex max-w-6xl items-center justify-between border-b border-border pb-4">
         <div className="flex items-center gap-3">
@@ -123,7 +209,7 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">ระบบผู้ดูแลร้าน (Admin Dashboard)</h1>
-            <p className="text-xs text-muted-foreground">สรุปยอดขาย การจัดการโต๊ะ และภาพรวมร้านอาหาร</p>
+            <p className="text-xs text-muted-foreground">สรุปยอดขาย การจัดการโต๊ะ เมนูอาหาร และ Recharts Analytics</p>
           </div>
         </div>
 
@@ -179,13 +265,65 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Table Management & Recent Orders */}
+      {/* Recharts Revenue & Status Charts */}
       <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Manage Tables */}
+        {/* Bar Chart Revenue */}
+        <section className="rounded-3xl border border-border bg-card p-5 shadow-xs lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <h2 className="font-display text-lg font-bold text-card-foreground">กราฟสรุปรายได้ (ยอดขายรวม)</h2>
+            </div>
+          </div>
+          <div className="mt-4 h-64 w-full">
+            {revenueChartData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                ยังไม่มีข้อมูลยอดขายที่ชำระแล้ว
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueChartData}>
+                  <XAxis dataKey="date" stroke="#888888" fontSize={12} />
+                  <YAxis stroke="#888888" fontSize={12} />
+                  <Tooltip formatter={(value: any) => [`${value ?? 0} บาท`, 'ยอดขาย']} />
+                  <Bar dataKey="total" fill="var(--color-primary, #b91c1c)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </section>
+
+        {/* Pie Chart Status */}
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs lg:col-span-1">
+          <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">สัดส่วนสถานะออเดอร์</h2>
+          <div className="mt-4 h-64 w-full">
+            {statusPieData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                ยังไม่มีออเดอร์ในระบบ
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={statusPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label>
+                    {statusPieData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* Table Management & Menu Available */}
+      <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Manage Tables (is_active) */}
+        <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
           <div className="flex items-center gap-2 border-b border-border pb-3">
             <TableIcon className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-lg font-bold text-card-foreground">จัดการโต๊ะอาหาร</h2>
+            <h2 className="font-display text-lg font-bold text-card-foreground">จัดการโต๊ะและลิงก์ QR Code (/table/[id])</h2>
           </div>
 
           <form onSubmit={handleAddTable} className="mt-4 space-y-3">
@@ -217,81 +355,126 @@ export default function AdminPage() {
 
           <ul className="mt-4 divide-y divide-border overflow-y-auto max-h-64">
             {tables.map((t) => (
-              <li key={t.id} className="flex items-center justify-between py-2 text-xs">
-                <span className="font-semibold text-card-foreground">{t.name} ({t.id})</span>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteTable(t.id)}
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+              <li key={t.id} className="flex items-center justify-between py-2.5 text-xs">
+                <div>
+                  <span className="font-semibold text-card-foreground">{t.name} ({t.id})</span>
+                  <a
+                    href={`/table/${t.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-2 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                  >
+                    <QrCode className="h-3 w-3" /> ลิงก์โต๊ะ
+                  </a>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleTableActive(t.id, t.is_active)}
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                      t.is_active ? 'bg-emerald-500/15 text-emerald-700' : 'bg-destructive/15 text-destructive'
+                    }`}
+                  >
+                    {t.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteTable(t.id)}
+                    className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         </section>
 
-        {/* Recent Orders Table */}
-        <section className="rounded-3xl border border-border bg-card p-5 shadow-xs lg:col-span-2">
-          <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">ประวัติคำสั่งซื้อทั้งหมด</h2>
-
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="pb-2">โต๊ะ</th>
-                  <th className="pb-2">เวลา</th>
-                  <th className="pb-2">ยอดเงิน</th>
-                  <th className="pb-2">สถานะ</th>
-                  <th className="pb-2 text-right">สลิป</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {orders.map((o) => {
-                  const slipUrl = o.payments?.[0]?.slip_url
-                  return (
-                    <tr key={o.id} className="hover:bg-secondary/40">
-                      <td className="py-2.5 font-semibold text-card-foreground">โต๊ะ {o.table_id}</td>
-                      <td className="py-2.5 text-muted-foreground">
-                        {new Date(o.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                      <td className="py-2.5 font-bold text-primary">{o.total}฿</td>
-                      <td className="py-2.5">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                            o.status === 'paid'
-                              ? 'bg-emerald-500/15 text-emerald-700'
-                              : o.status === 'served'
-                              ? 'bg-purple-500/15 text-purple-700'
-                              : o.status === 'preparing'
-                              ? 'bg-blue-500/15 text-blue-700'
-                              : 'bg-amber-500/15 text-amber-700'
-                          }`}
-                        >
-                          {o.status}
-                        </span>
-                      </td>
-                      <td className="py-2.5 text-right">
-                        {slipUrl ? (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedSlip(slipUrl)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground hover:bg-secondary/80"
-                          >
-                            <Eye className="h-3 w-3" /> สลิป
-                          </button>
-                        ) : (
-                          <span className="text-muted-foreground text-[10px]">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+        {/* Menu Items Availability (is_available) */}
+        <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
+          <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">จัดการสถานะเมนูอาหาร (is_available)</h2>
+          <ul className="mt-4 divide-y divide-border overflow-y-auto max-h-80">
+            {menuItems.map((item) => (
+              <li key={item.id} className="flex items-center justify-between py-2.5 text-xs">
+                <div>
+                  <p className="font-semibold text-card-foreground">{item.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{item.price} บาท</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleMenuAvailable(item.id, item.is_available)}
+                  className={`rounded-full px-3 py-1 text-[10px] font-bold ${
+                    item.is_available ? 'bg-emerald-500/15 text-emerald-700' : 'bg-destructive/15 text-destructive'
+                  }`}
+                >
+                  {item.is_available ? 'พร้อมขาย' : 'สินค้าหมด'}
+                </button>
+              </li>
+            ))}
+          </ul>
         </section>
       </div>
+
+      {/* Recent Orders Table */}
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-border bg-card p-5 shadow-xs">
+        <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">ประวัติคำสั่งซื้อทั้งหมด</h2>
+
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground">
+                <th className="pb-2">โต๊ะ</th>
+                <th className="pb-2">เวลา</th>
+                <th className="pb-2">ยอดเงิน</th>
+                <th className="pb-2">สถานะ</th>
+                <th className="pb-2 text-right">สลิป</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {orders.map((o) => {
+                const slipUrl = o.payments?.[0]?.slip_url
+                return (
+                  <tr key={o.id} className="hover:bg-secondary/40">
+                    <td className="py-2.5 font-semibold text-card-foreground">โต๊ะ {o.table_id}</td>
+                    <td className="py-2.5 text-muted-foreground">
+                      {new Date(o.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td className="py-2.5 font-bold text-primary">{o.total}฿</td>
+                    <td className="py-2.5">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          o.status === 'paid'
+                            ? 'bg-emerald-500/15 text-emerald-700'
+                            : o.status === 'served'
+                            ? 'bg-purple-500/15 text-purple-700'
+                            : o.status === 'preparing'
+                            ? 'bg-blue-500/15 text-blue-700'
+                            : 'bg-amber-500/15 text-amber-700'
+                        }`}
+                      >
+                        {o.status}
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-right">
+                      {slipUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSlip(slipUrl)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground hover:bg-secondary/80"
+                        >
+                          <Eye className="h-3 w-3" /> สลิป
+                        </button>
+                      ) : (
+                        <span className="text-muted-foreground text-[10px]">-</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* Slip Modal View */}
       {selectedSlip && (
@@ -309,4 +492,3 @@ export default function AdminPage() {
     </main>
   )
 }
-
