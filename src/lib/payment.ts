@@ -1,6 +1,8 @@
 import generatePayload from 'promptpay-qr'
 import QRCode from 'qrcode'
 import { createClient } from '@/utils/supabase/client'
+import type { CartLine } from '@/components/floating-cart'
+import { optionPrice } from '@/lib/menu'
 
 export async function generatePromptPayQR(phoneNumber: string, amount: number): Promise<string> {
   const payload = generatePayload(phoneNumber, { amount })
@@ -18,10 +20,12 @@ export async function generatePromptPayQR(phoneNumber: string, amount: number): 
 export async function createOrderWithPayment({
   tableId = 'T1',
   total,
+  lines = [],
   slipFile,
 }: {
   tableId?: string
   total: number
+  lines?: CartLine[]
   slipFile?: File | null
 }) {
   const supabase = createClient()
@@ -41,9 +45,36 @@ export async function createOrderWithPayment({
     throw new Error(`การสร้างรายการสั่งซื้อล้มเหลว: ${orderError.message}`)
   }
 
+  // 2. Insert order items & order item options if lines exist
+  for (const line of lines) {
+    const itemPrice = line.item.price + optionPrice(line.selected)
+    const { data: orderItem, error: itemError } = await supabase
+      .from('order_items')
+      .insert({
+        order_id: order.id,
+        name: line.item.name,
+        price: itemPrice,
+        qty: line.quantity,
+      })
+      .select()
+      .single()
+
+    if (!itemError && orderItem) {
+      // Insert item options/customizations
+      const selectedOptionList = Object.values(line.selected).flat()
+      for (const opt of selectedOptionList) {
+        await supabase.from('order_item_options').insert({
+          order_item_id: orderItem.id,
+          name: opt.label,
+          extra_price: opt.price || 0,
+        })
+      }
+    }
+  }
+
   let slipUrl: string | null = null
 
-  // 2. Upload slip file to Supabase Storage bucket 'slips' if provided
+  // 3. Upload slip file to Supabase Storage bucket 'slips' if provided
   if (slipFile && slipFile.size > 0) {
     const fileExt = slipFile.name.split('.').pop() || 'png'
     const fileName = `${order.id}-${Date.now()}.${fileExt}`
@@ -65,7 +96,7 @@ export async function createOrderWithPayment({
     }
   }
 
-  // 3. Insert payment record
+  // 4. Insert payment record
   const { data: payment, error: paymentError } = await supabase
     .from('payments')
     .insert({

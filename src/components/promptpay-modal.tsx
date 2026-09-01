@@ -3,15 +3,17 @@
 import { useState, useEffect } from 'react'
 import { X, QrCode, Upload, CheckCircle2, Copy, Check, Loader2 } from 'lucide-react'
 import { generatePromptPayQR, createOrderWithPayment } from '@/lib/payment'
+import type { CartLine } from '@/components/floating-cart'
 
 type PromptPayModalProps = {
   totalPrice: number
   tableId?: string
+  lines?: CartLine[]
   onClose: () => void
   onSuccess: () => void
 }
 
-export function PromptPayModal({ totalPrice, tableId = 'T1', onClose, onSuccess }: PromptPayModalProps) {
+export function PromptPayModal({ totalPrice, tableId = 'T1', lines = [], onClose, onSuccess }: PromptPayModalProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
   const [slipFile, setSlipFile] = useState<File | null>(null)
   const [slipPreview, setSlipPreview] = useState<string | null>(null)
@@ -63,6 +65,7 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', onClose, onSuccess 
       await createOrderWithPayment({
         tableId,
         total: totalPrice,
+        lines,
         slipFile,
       })
       setCompleted(true)

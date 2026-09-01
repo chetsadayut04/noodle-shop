@@ -111,6 +111,7 @@ export function MenuPage() {
         <PromptPayModal
           totalPrice={totalPrice}
           tableId="T1"
+          lines={lines}
           onClose={() => setCheckoutOpen(false)}
           onSuccess={() => {
             setCart({})
