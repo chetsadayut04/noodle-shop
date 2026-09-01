@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, QrCode, Upload, CheckCircle2, Copy, Check, Loader2 } from 'lucide-react'
+import { X, QrCode, Upload, CheckCircle2, Copy, Check, Loader2, ShieldCheck } from 'lucide-react'
 import { generatePromptPayQR, createOrderWithPayment } from '@/lib/payment'
 
 type PromptPayModalProps = {
@@ -18,6 +18,7 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', onClose, onSuccess 
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
   const [completed, setCompleted] = useState(false)
+  const [isVerified, setIsVerified] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0812345678'
@@ -60,15 +61,16 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', onClose, onSuccess 
     setLoading(true)
     setErrorMessage(null)
     try {
-      await createOrderWithPayment({
+      const res = await createOrderWithPayment({
         tableId,
         total: totalPrice,
         slipFile,
       })
+      setIsVerified(res.verified)
       setCompleted(true)
       setTimeout(() => {
         onSuccess()
-      }, 3000)
+      }, 3500)
     } catch (err: any) {
       console.error('Payment order submission error:', err)
       setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลสลิป กรุณาลองใหม่อีกครั้ง')
@@ -88,9 +90,20 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', onClose, onSuccess 
 
         {completed ? (
           <div className="py-8 text-center">
-            <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500 animate-bounce" />
-            <h2 className="mt-4 font-display text-2xl font-bold text-card-foreground">ส่งรายการสั่งซื้อเรียบร้อย!</h2>
-            <p className="mt-2 text-sm text-muted-foreground">ทางร้านได้รับข้อมูลเรียบร้อยแล้ว กรุณารออาหารสักครู่</p>
+            {isVerified ? (
+              <>
+                <ShieldCheck className="mx-auto h-16 w-16 text-emerald-500 animate-bounce" />
+                <h2 className="mt-4 font-display text-2xl font-bold text-card-foreground">ชำระเงินสำเร็จแล้ว!</h2>
+                <p className="mt-2 text-sm text-emerald-600 font-medium">สลิปได้รับการตรวจสอบยืนยันจากธนาคารเรียบร้อยแล้ว</p>
+                <p className="mt-1 text-xs text-muted-foreground">ทางร้านกำลังจัดเตรียมอาหารให้คุณ</p>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500 animate-bounce" />
+                <h2 className="mt-4 font-display text-2xl font-bold text-card-foreground">ส่งรายการสั่งซื้อเรียบร้อย!</h2>
+                <p className="mt-2 text-sm text-muted-foreground">ทางร้านได้รับข้อมูลและสลิปแล้ว กรุณารอพนักงานตรวจสอบสักครู่</p>
+              </>
+            )}
           </div>
         ) : (
           <div>
@@ -124,7 +137,7 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', onClose, onSuccess 
 
             {/* Slip Upload Area */}
             <div className="mt-5 space-y-2">
-              <label className="block text-sm font-semibold text-card-foreground">แนบสลิปการโอนเงิน (ถ้ามี)</label>
+              <label className="block text-sm font-semibold text-card-foreground">แนบสลิปการโอนเงิน (สำหรับตรวจสอบอัตโนมัติ)</label>
               
               {slipPreview ? (
                 <div className="relative overflow-hidden rounded-xl border border-border bg-secondary p-2 text-center">
@@ -155,10 +168,10 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', onClose, onSuccess 
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" /> กำลังบันทึกข้อมูล...
+                  <Loader2 className="h-5 w-5 animate-spin" /> กำลังตรวจสอบสลิปกับระบบธนาคาร...
                 </>
               ) : (
-                'ยืนยันการแจ้งชำระเงิน'
+                'ยืนยันและส่งสลิปโอนเงิน'
               )}
             </button>
           </div>
