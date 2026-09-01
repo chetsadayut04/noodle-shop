@@ -1,5 +1,6 @@
 import generatePayload from 'promptpay-qr'
 import QRCode from 'qrcode'
+import { createClient } from '@/utils/supabase/client'
 
 export async function generatePromptPayQR(phoneNumber: string, amount: number): Promise<string> {
   const payload = generatePayload(phoneNumber, { amount })
@@ -23,27 +24,63 @@ export async function createOrderWithPayment({
   total: number
   slipFile?: File | null
 }) {
-  const formData = new FormData()
-  formData.append('tableId', tableId)
-  formData.append('total', total.toString())
-  if (slipFile) {
-    formData.append('slip', slipFile)
+  const supabase = createClient()
+
+  // 1. Insert order record
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .insert({
+      table_id: tableId,
+      status: 'pending',
+      total,
+    })
+    .select()
+    .single()
+
+  if (orderError) {
+    throw new Error(`การสร้างรายการสั่งซื้อล้มเหลว: ${orderError.message}`)
   }
 
-  const response = await fetch('/api/verify-slip', {
-    method: 'POST',
-    body: formData,
-  })
+  let slipUrl: string | null = null
 
-  const result = await response.json()
+  // 2. Upload slip file to Supabase Storage bucket 'slips' if provided
+  if (slipFile && slipFile.size > 0) {
+    const fileExt = slipFile.name.split('.').pop() || 'png'
+    const fileName = `${order.id}-${Date.now()}.${fileExt}`
 
-  if (!response.ok || result.error) {
-    throw new Error(result.error || 'เกิดข้อผิดพลาดในการตรวจสอบสลิปการชำระเงิน')
+    const { error: uploadError } = await supabase.storage
+      .from('slips')
+      .upload(fileName, slipFile, {
+        cacheControl: '3600',
+        upsert: true,
+      })
+
+    if (uploadError) {
+      console.warn('Slip upload warning:', uploadError.message)
+    } else {
+      const { data: publicUrlData } = supabase.storage
+        .from('slips')
+        .getPublicUrl(fileName)
+      slipUrl = publicUrlData?.publicUrl || null
+    }
   }
 
-  return {
-    order: result.order,
-    payment: result.payment,
-    verified: result.verified as boolean,
+  // 3. Insert payment record
+  const { data: payment, error: paymentError } = await supabase
+    .from('payments')
+    .insert({
+      order_id: order.id,
+      method: 'promptpay',
+      amount: total,
+      slip_url: slipUrl,
+      status: 'pending',
+    })
+    .select()
+    .single()
+
+  if (paymentError) {
+    throw new Error(`การสร้างบันทึกการชำระเงินล้มเหลว: ${paymentError.message}`)
   }
+
+  return { order, payment }
 }
