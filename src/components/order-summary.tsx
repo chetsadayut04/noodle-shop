@@ -267,13 +267,23 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
                 <div className="pt-2 text-left space-y-2">
                   <label className="block text-xs font-semibold text-card-foreground">แนบสลิปโอนเงิน (ถ้ามี):</label>
                   {slipPreview ? (
-                    <div className="relative rounded-xl border border-border bg-card p-2 text-center">
-                      <img src={slipPreview} alt="Slip" className="mx-auto max-h-32 object-contain rounded-lg" />
+                    <div className="relative rounded-2xl border border-emerald-500/40 bg-emerald-500/5 p-2.5 text-center overflow-hidden">
+                      <div className="relative mx-auto inline-block max-w-full overflow-hidden rounded-xl border border-border shadow-xs bg-white">
+                        <img src={slipPreview} alt="Slip" className="max-h-60 w-auto object-contain block mx-auto" />
+                        <button
+                          type="button"
+                          onClick={() => { setSlipFile(null); setSlipPreview(null) }}
+                          className="absolute top-1.5 right-1.5 rounded-full bg-black/60 p-1 text-white hover:bg-black/80 transition-colors"
+                          title="เปลี่ยนรูปสลิป"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                       <button
                         type="button"
                         onClick={handleUploadSlip}
                         disabled={loading}
-                        className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl bg-emerald-600 py-2 text-xs font-bold text-white shadow-xs"
+                        className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors active:scale-[0.99]"
                       >
                         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'ส่งสลิปการชำระเงิน'}
                       </button>

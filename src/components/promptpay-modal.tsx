@@ -207,11 +207,27 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', lines = [], onClose
               <label className="block text-sm font-semibold text-card-foreground">แนบสลิปการโอนเงิน (ถ้ามี)</label>
               
               {slipPreview ? (
-                <div className="relative overflow-hidden rounded-xl border border-border bg-secondary p-2 text-center">
-                  <img src={slipPreview} alt="Slip Preview" className="mx-auto max-h-40 object-contain rounded-lg" />
-                  <button type="button" onClick={() => { setSlipFile(null); setSlipPreview(null) }} className="mt-2 text-xs font-medium text-destructive underline">
-                    เปลี่ยนรูปสลิป
-                  </button>
+                <div className="relative rounded-2xl border border-emerald-500/40 bg-emerald-500/5 p-3 text-center overflow-hidden">
+                  <div className="relative mx-auto inline-block max-w-full overflow-hidden rounded-xl border border-border shadow-xs bg-white">
+                    <img src={slipPreview} alt="Slip Preview" className="max-h-60 w-auto object-contain block mx-auto" />
+                    <button
+                      type="button"
+                      onClick={() => { setSlipFile(null); setSlipPreview(null) }}
+                      className="absolute top-1.5 right-1.5 rounded-full bg-black/60 p-1 text-white hover:bg-black/80 transition-colors"
+                      title="เปลี่ยนรูปสลิป"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="mt-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => { setSlipFile(null); setSlipPreview(null) }}
+                      className="text-xs font-semibold text-destructive hover:underline"
+                    >
+                      เปลี่ยนรูปสลิปใหม่
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-secondary/50 p-4 transition-colors hover:bg-secondary">
