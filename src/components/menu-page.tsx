@@ -166,7 +166,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
   const activeSummaryPrice = lines.length > 0 ? totalPrice : orderedHistoryPrice
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl pb-28">
+    <main className="mx-auto min-h-dvh w-full max-w-4xl px-4 sm:px-6 lg:px-8 pb-28">
       <header className="flex items-start justify-between gap-4 px-5 pb-4 pt-8">
         <div>
           <div className="flex items-center gap-2">
@@ -227,7 +227,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
         </ul>
       </nav>
 
-      <section className="grid grid-cols-1 gap-4 px-5 py-6 sm:grid-cols-2">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 py-6">
         {visibleItems.map((item) => (
           <MenuCard
             key={item.id}
