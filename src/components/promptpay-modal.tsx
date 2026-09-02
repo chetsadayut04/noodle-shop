@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, QrCode, Upload, CheckCircle2, Copy, Check, Loader2 } from 'lucide-react'
+import { X, QrCode, Upload, CheckCircle2, Copy, Check, Loader2, Download, Clock, RefreshCw } from 'lucide-react'
 import { generatePromptPayQR, createOrderWithPayment } from '@/lib/payment'
 import type { CartLine } from '@/components/floating-cart'
 
@@ -22,7 +22,19 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', lines = [], onClose
   const [completed, setCompleted] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
+  // 15-minute countdown timer
+  const INITIAL_TIME = 15 * 60
+  const [timeLeft, setTimeLeft] = useState(INITIAL_TIME)
+
   const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0830256721'
+
+  useEffect(() => {
+    if (timeLeft <= 0) return
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [timeLeft])
 
   useEffect(() => {
     let isMounted = true
@@ -39,6 +51,32 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', lines = [], onClose
       isMounted = false
     }
   }, [totalPrice, promptPayNumber])
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
+
+  const handleRefreshQR = async () => {
+    setTimeLeft(INITIAL_TIME)
+    try {
+      const url = await generatePromptPayQR(promptPayNumber, totalPrice)
+      setQrCodeUrl(url)
+    } catch (err) {
+      console.error('Failed to regenerate QR code:', err)
+    }
+  }
+
+  const handleDownloadQR = () => {
+    if (!qrCodeUrl) return
+    const link = document.createElement('a')
+    link.href = qrCodeUrl
+    link.download = `PromptPay-QR-${totalPrice}THB.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -107,21 +145,60 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', lines = [], onClose
 
             {/* QR Code Container */}
             <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-border bg-white p-4 shadow-inner">
-              <div className="mb-2 text-xs font-semibold text-blue-900 tracking-wide uppercase">พร้อมเพย์ PromptPay</div>
-              {qrCodeUrl ? (
-                <img src={qrCodeUrl} alt="PromptPay QR Code" className="h-56 w-56 object-contain" />
+              <div className="mb-1 text-xs font-semibold text-blue-900 tracking-wide uppercase">พร้อมเพย์ PromptPay</div>
+              
+              {/* Countdown Timer Badge */}
+              <div className="mb-2">
+                {timeLeft > 0 ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+                    <Clock className="h-3.5 w-3.5 animate-pulse" /> กรุณาชำระเงินภายใน {formatTime(timeLeft)} นาที
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2.5 py-0.5 text-[11px] font-bold text-destructive">
+                    <Clock className="h-3.5 w-3.5" /> QR Code หมดอายุ
+                  </span>
+                )}
+              </div>
+
+              {timeLeft > 0 ? (
+                qrCodeUrl ? (
+                  <img src={qrCodeUrl} alt="PromptPay QR Code" className="h-56 w-56 object-contain" />
+                ) : (
+                  <div className="flex h-56 w-56 items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                )
               ) : (
-                <div className="flex h-56 w-56 items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div className="flex h-56 w-56 flex-col items-center justify-center text-center p-4">
+                  <p className="text-xs text-muted-foreground mb-3">QR Code หมดเวลาแล้ว กรุณากดสร้างใหม่</p>
+                  <button
+                    type="button"
+                    onClick={handleRefreshQR}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-xs"
+                  >
+                    <RefreshCw className="h-4 w-4" /> สร้าง QR Code ใหม่
+                  </button>
                 </div>
               )}
               
-              {/* Account / Phone Number */}
-              <div className="mt-3 flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-1.5 text-xs text-slate-700">
-                <span>หมายเลข: <strong>{promptPayNumber}</strong></span>
-                <button type="button" onClick={handleCopyNumber} className="text-primary hover:text-primary/80">
-                  {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                </button>
+              {/* Download & Copy Buttons */}
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                {qrCodeUrl && timeLeft > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadQR}
+                    className="inline-flex items-center gap-1 rounded-xl bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Download className="h-3.5 w-3.5" /> บันทึกรูป QR
+                  </button>
+                )}
+
+                <div className="flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-1.5 text-xs text-slate-700">
+                  <span>เบอร์: <strong>{promptPayNumber}</strong></span>
+                  <button type="button" onClick={handleCopyNumber} className="text-primary hover:text-primary/80">
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
             </div>
 

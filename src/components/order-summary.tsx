@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Receipt, X, QrCode, Upload, Check, Copy, Loader2, CheckCircle2 } from 'lucide-react'
+import { Receipt, X, QrCode, Upload, Check, Copy, Loader2, CheckCircle2, Download, Clock, RefreshCw } from 'lucide-react'
 import { optionPrice, optionSummary, optionsKey, type MenuItem, type SelectedOptions } from '@/lib/menu'
 import { generatePromptPayQR, uploadSlipForOrder, createOrderOnly } from '@/lib/payment'
 
@@ -25,13 +25,52 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
   const [copied, setCopied] = useState(false)
   const [uploadSuccess, setUploadSuccess] = useState(false)
 
+  // 15-minute countdown timer
+  const INITIAL_TIME = 15 * 60
+  const [timeLeft, setTimeLeft] = useState(INITIAL_TIME)
+
   const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0830256721'
 
   useEffect(() => {
+    if (!showQR || timeLeft <= 0) return
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [showQR, timeLeft])
+
+  useEffect(() => {
     if (showQR && totalPrice > 0) {
+      setTimeLeft(INITIAL_TIME)
       generatePromptPayQR(promptPayNumber, totalPrice).then(setQrCodeUrl).catch(console.error)
     }
   }, [showQR, totalPrice, promptPayNumber])
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
+
+  const handleRefreshQR = async () => {
+    setTimeLeft(INITIAL_TIME)
+    try {
+      const url = await generatePromptPayQR(promptPayNumber, totalPrice)
+      setQrCodeUrl(url)
+    } catch (err) {
+      console.error('Failed to regenerate QR code:', err)
+    }
+  }
+
+  const handleDownloadQR = () => {
+    if (!qrCodeUrl) return
+    const link = document.createElement('a')
+    link.href = qrCodeUrl
+    link.download = `PromptPay-QR-${totalPrice}THB.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -164,20 +203,58 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
                 </button>
               </div>
 
-              {/* QR Image */}
-              <div className="mx-auto flex h-48 w-48 items-center justify-center rounded-xl bg-white p-2 border border-border">
-                {qrCodeUrl ? (
-                  <img src={qrCodeUrl} alt="PromptPay QR" className="h-full w-full object-contain" />
+              {/* Countdown Timer Badge */}
+              <div>
+                {timeLeft > 0 ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+                    <Clock className="h-3.5 w-3.5 animate-pulse" /> กรุณาชำระเงินภายใน {formatTime(timeLeft)} นาที
+                  </span>
                 ) : (
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2.5 py-0.5 text-[11px] font-bold text-destructive">
+                    <Clock className="h-3.5 w-3.5" /> QR Code หมดอายุ
+                  </span>
                 )}
               </div>
 
-              <div className="flex items-center justify-center gap-2 text-xs">
-                <span>พร้อมเพย์: <strong>{promptPayNumber}</strong></span>
-                <button type="button" onClick={handleCopyNumber} className="text-primary">
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
+              {/* QR Image */}
+              <div className="mx-auto flex h-48 w-48 items-center justify-center rounded-xl bg-white p-2 border border-border">
+                {timeLeft > 0 ? (
+                  qrCodeUrl ? (
+                    <img src={qrCodeUrl} alt="PromptPay QR" className="h-full w-full object-contain" />
+                  ) : (
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center p-2">
+                    <p className="text-[11px] text-muted-foreground mb-2">QR หมดเวลาแล้ว</p>
+                    <button
+                      type="button"
+                      onClick={handleRefreshQR}
+                      className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-[11px] font-bold text-primary-foreground"
+                    >
+                      <RefreshCw className="h-3 w-3" /> สร้าง QR ใหม่
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Download & Copy Buttons */}
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
+                {qrCodeUrl && timeLeft > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadQR}
+                    className="inline-flex items-center gap-1 rounded-xl bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Download className="h-3.5 w-3.5" /> บันทึกรูป QR
+                  </button>
+                )}
+                <div className="flex items-center gap-1 rounded-xl bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+                  <span>พร้อมเพย์: <strong>{promptPayNumber}</strong></span>
+                  <button type="button" onClick={handleCopyNumber} className="text-primary">
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
 
               {/* Upload Slip Area */}
