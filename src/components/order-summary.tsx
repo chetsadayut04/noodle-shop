@@ -274,7 +274,7 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
-                      <CheckCircle2 className="h-4 w-4" /> ยืนยันชำระเงินเรียบร้อย / ส่งออเดอร์
+                      <CheckCircle2 className="h-4 w-4" /> ยืนยันชำระเงินเรียบร้อย
                     </>
                   )}
                 </button>
