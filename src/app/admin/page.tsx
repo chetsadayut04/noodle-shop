@@ -334,19 +334,36 @@ export default function AdminPage() {
     router.refresh()
   }
 
-  const totalRevenue = orders
-    .filter((o) => o.status === 'paid')
+  const updateOrderStatus = async (orderId: string, nextStatus: string) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: nextStatus })
+        .eq('id', orderId)
+
+      if (error) throw error
+      fetchData()
+    } catch (err: any) {
+      console.error('Update order status error:', err)
+    }
+  }
+
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0)
+
+  const paidRevenue = orders
+    .filter((o) => o.status === 'paid' || o.payments?.some((p) => p.slip_url))
     .reduce((sum, o) => sum + (o.total || 0), 0)
 
-  const paidOrdersCount = orders.filter((o) => o.status === 'paid').length
+  const paidOrdersCount = orders.filter(
+    (o) => o.status === 'paid' || o.payments?.some((p) => p.slip_url)
+  ).length
 
   // Revenue chart data
   const chartDataMap: Record<string, number> = {}
   orders.forEach((o) => {
-    if (o.status === 'paid') {
-      const dateKey = new Date(o.created_at).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })
-      chartDataMap[dateKey] = (chartDataMap[dateKey] || 0) + (o.total || 0)
-    }
+    const dateKey = new Date(o.created_at).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })
+    chartDataMap[dateKey] = (chartDataMap[dateKey] || 0) + (o.total || 0)
   })
   const revenueChartData = Object.keys(chartDataMap).map((key) => ({
     date: key,
@@ -404,7 +421,7 @@ export default function AdminPage() {
             <DollarSign className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">ยอดขายรวม (เฉพาะที่ชำระแล้ว)</p>
+            <p className="text-xs font-semibold text-muted-foreground">ยอดขายออเดอร์รวมทั้งหมด</p>
             <p className="font-display text-2xl font-bold text-primary">{totalRevenue} บาท</p>
           </div>
         </div>
@@ -414,7 +431,7 @@ export default function AdminPage() {
             <ShoppingBag className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">ออเดอร์ทั้งหมด</p>
+            <p className="text-xs font-semibold text-muted-foreground">จำนวนออเดอร์ทั้งหมด</p>
             <p className="font-display text-2xl font-bold text-card-foreground">{orders.length} รายการ</p>
           </div>
         </div>
@@ -424,8 +441,8 @@ export default function AdminPage() {
             <CheckCircle2 className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">ออเดอร์ชำระเงินแล้ว</p>
-            <p className="font-display text-2xl font-bold text-card-foreground">{paidOrdersCount} รายการ</p>
+            <p className="text-xs font-semibold text-muted-foreground">ยอดชำระแล้ว / มีสลิปโอน</p>
+            <p className="font-display text-2xl font-bold text-emerald-600">{paidRevenue} บาท ({paidOrdersCount} บิล)</p>
           </div>
         </div>
       </div>

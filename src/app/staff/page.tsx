@@ -373,6 +373,20 @@ export default function StaffPage() {
                         <Eye className="h-3.5 w-3.5 text-primary" /> ดูสลิปเงินโอน
                       </button>
                     )}
+
+                    {!isPaid ? (
+                      <button
+                        type="button"
+                        onClick={() => updateOrderStatus(order.id, 'paid')}
+                        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
+                      >
+                        <DollarSign className="h-3.5 w-3.5" /> 💰 ยืนยันรับเงิน / ชำระแล้ว
+                      </button>
+                    ) : (
+                      <div className="mt-2 text-center text-[11px] font-bold text-emerald-700 bg-emerald-500/10 py-1 rounded-xl">
+                        ✓ ชำระเงินเรียบร้อยแล้ว
+                      </div>
+                    )}
                   </div>
                 )
               })
