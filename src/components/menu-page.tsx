@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { categories, menuItems, type MenuItem, type SelectedOptions, optionPrice, optionsKey } from '@/lib/menu'
+import { categories, menuItems as staticMenuItems, type MenuItem, type SelectedOptions, optionPrice, optionsKey } from '@/lib/menu'
 import { MenuCard } from '@/components/menu-card'
 import { FloatingCart } from '@/components/floating-cart'
 import { OrderSummary } from '@/components/order-summary'
@@ -27,6 +27,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
   
   const [userRole, setUserRole] = useState<string | null>(null)
   const [availabilityMap, setAvailabilityMap] = useState<Record<string, boolean>>({})
+  const [dbMenuItems, setDbMenuItems] = useState<MenuItem[]>(staticMenuItems)
 
   useEffect(() => {
     const supabase = createClient()
@@ -38,23 +39,41 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
       }
     })
 
-    // Fetch live menu items availability
-    async function fetchAvailability() {
+    // Fetch live menu items from Supabase
+    async function fetchMenuItems() {
       try {
-        const { data } = await supabase.from('menu_items').select('id, is_available')
+        const { data } = await supabase.from('menu_items').select('*')
         if (data) {
           const map: Record<string, boolean> = {}
           data.forEach((item) => {
             map[item.id] = item.is_available
           })
           setAvailabilityMap(map)
+
+          // Filter out deleted items from static list based on Supabase DB
+          const liveIds = new Set(data.map((d) => d.id))
+          const filteredStatic = staticMenuItems.filter((m) => liveIds.has(m.id))
+
+          // Add newly added DB items not in static file
+          const newDbItems: MenuItem[] = data
+            .filter((d) => !staticMenuItems.some((m) => m.id === d.id))
+            .map((d) => ({
+              id: d.id,
+              name: d.name,
+              category: d.category_id as any,
+              price: Number(d.price),
+              description: 'เมนูอร่อยจากทางร้าน',
+              image: '/food/ba-mee.png',
+            }))
+
+          setDbMenuItems([...filteredStatic, ...newDbItems])
         }
       } catch (err) {
-        console.error('Fetch availability error:', err)
+        console.error('Fetch menu items error:', err)
       }
     }
 
-    fetchAvailability()
+    fetchMenuItems()
   }, [])
 
   const addItem = (item: MenuItem, selected: SelectedOptions) => {
@@ -76,7 +95,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
     if (entry) removeItem(entry)
   }
 
-  const visibleItems = menuItems.filter((item) => item.category === activeCategory)
+  const visibleItems = dbMenuItems.filter((item) => item.category === activeCategory)
   
   const { lines, totalCount, totalPrice } = useMemo(() => {
     const lines = Object.values(cart)
