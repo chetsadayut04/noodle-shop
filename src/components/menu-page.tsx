@@ -39,23 +39,50 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
       }
     })
 
-    // Fetch live menu items from Supabase
-    async function fetchMenuItems() {
+    // Fetch live menu items, option_groups, and options from Supabase
+    async function fetchMenuItemsAndOptions() {
       try {
-        const { data } = await supabase.from('menu_items').select('*')
-        if (data) {
+        const { data: items } = await supabase.from('menu_items').select('*')
+        const { data: dbGroups } = await supabase.from('option_groups').select('*')
+        const { data: dbOptions } = await supabase.from('options').select('*')
+
+        if (items) {
           const map: Record<string, boolean> = {}
-          data.forEach((item) => {
+          items.forEach((item) => {
             map[item.id] = item.is_available
           })
           setAvailabilityMap(map)
 
+          // Helper to attach dynamic options from Supabase DB
+          const buildOptions = (menuItemId: string, staticOpts?: any) => {
+            const itemGroups = dbGroups?.filter((g) => g.menu_item_id === menuItemId) || []
+            if (itemGroups.length === 0) return staticOpts
+
+            return {
+              groups: itemGroups.map((g) => ({
+                id: g.id,
+                label: g.name,
+                required: g.is_required,
+                options: (dbOptions?.filter((o) => o.group_id === g.id) || []).map((o) => ({
+                  id: o.id,
+                  label: o.name,
+                  price: Number(o.extra_price) || 0,
+                })),
+              })),
+            }
+          }
+
           // Filter out deleted items from static list based on Supabase DB
-          const liveIds = new Set(data.map((d) => d.id))
-          const filteredStatic = staticMenuItems.filter((m) => liveIds.has(m.id))
+          const liveIds = new Set(items.map((d) => d.id))
+          const filteredStatic = staticMenuItems
+            .filter((m) => liveIds.has(m.id))
+            .map((m) => ({
+              ...m,
+              options: buildOptions(m.id, m.options),
+            }))
 
           // Add newly added DB items not in static file
-          const newDbItems: MenuItem[] = data
+          const newDbItems: MenuItem[] = items
             .filter((d) => !staticMenuItems.some((m) => m.id === d.id))
             .map((d) => ({
               id: d.id,
@@ -64,16 +91,17 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
               price: Number(d.price),
               description: 'เมนูอร่อยจากทางร้าน',
               image: '/food/ba-mee.png',
+              options: buildOptions(d.id),
             }))
 
           setDbMenuItems([...filteredStatic, ...newDbItems])
         }
       } catch (err) {
-        console.error('Fetch menu items error:', err)
+        console.error('Fetch menu items & options error:', err)
       }
     }
 
-    fetchMenuItems()
+    fetchMenuItemsAndOptions()
   }, [])
 
   const addItem = (item: MenuItem, selected: SelectedOptions) => {
@@ -222,7 +250,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
         onCheckout={handlePlaceOrder}
       />
 
-      {/* Order Summary & Receipt Modal (Contains PromptPay QR Code Payment Option) */}
+      {/* Order Summary & Receipt Modal */}
       {summaryOpen && (
         <OrderSummary
           lines={activeSummaryLines}
