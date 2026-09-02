@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Receipt, X, QrCode, Upload, Check, Copy, Loader2, CheckCircle2 } from 'lucide-react'
 import { optionPrice, optionSummary, optionsKey, type MenuItem, type SelectedOptions } from '@/lib/menu'
-import { generatePromptPayQR, uploadSlipForOrder } from '@/lib/payment'
+import { generatePromptPayQR, uploadSlipForOrder, createOrderOnly } from '@/lib/payment'
 
 export type SummaryLine = { item: MenuItem; selected: SelectedOptions; quantity: number }
 
@@ -51,18 +51,39 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
   }
 
   const handleUploadSlip = async () => {
-    if (!slipFile || !lastOrderId) return
+    if (!slipFile) {
+      alert('กรุณาเลือกไฟล์สลิปการโอนเงินก่อนกดส่งครับ')
+      return
+    }
+
     setLoading(true)
     try {
-      await uploadSlipForOrder({ orderId: lastOrderId, slipFile })
+      let targetOrderId = lastOrderId
+
+      // If user hasn't created order yet, create one now
+      if (!targetOrderId && lines.length > 0) {
+        const newOrder = await createOrderOnly({
+          tableId,
+          total: totalPrice,
+          lines,
+        })
+        targetOrderId = newOrder.id
+      }
+
+      if (!targetOrderId) {
+        alert('ไม่พบบันทึกรายการสั่งซื้อ กรุณากดสั่งอาหารก่อนแนบสลิปครับ')
+        return
+      }
+
+      await uploadSlipForOrder({ orderId: targetOrderId, slipFile })
       setUploadSuccess(true)
       setTimeout(() => {
         setUploadSuccess(false)
         setShowQR(false)
       }, 2500)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Upload slip error:', err)
-      alert('เกิดข้อผิดพลาดในการอัปโหลดสลิป กรุณาลองใหม่อีกครั้ง')
+      alert(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดสลิป กรุณาลองใหม่อีกครั้ง')
     } finally {
       setLoading(false)
     }
