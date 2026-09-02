@@ -147,7 +147,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
               <UtensilsCrossed className="h-3 w-3" /> โต๊ะ {tableId}
             </span>
           </div>
-          <h1 className="mt-1 font-display text-3xl font-bold text-foreground text-balance">ก๋วยเตี๋ยว &amp; ข้าวมันไก่</h1>
+          <h1 className="mt-1 font-display text-3xl font-bold text-foreground text-balance">ก๋วยเตี๋ยว &amp; ข้าว</h1>
           <p className="mt-2 text-pretty text-muted-foreground">รสชาติต้นตำรับ เส้นเหนียวนุ่ม น้ำซุปเข้มข้น พร้อมเสิร์ฟความอร่อยถึงโต๊ะคุณ</p>
         </div>
 

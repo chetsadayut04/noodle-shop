@@ -583,7 +583,7 @@ export default function AdminPage() {
                 className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
               >
                 <option value="guaytiew">ก๋วยเตี๋ยว (guaytiew)</option>
-                <option value="khaomangai">ข้าวมันไก่ (khaomangai)</option>
+                <option value="khaomangai">ข้าว (khaomangai)</option>
                 <option value="drinks">เครื่องดื่ม (drinks)</option>
               </select>
               <input
