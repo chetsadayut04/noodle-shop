@@ -20,6 +20,8 @@ import {
   TrendingUp,
   Utensils,
   Sliders,
+  Banknote,
+  Smartphone,
 } from 'lucide-react'
 import {
   BarChart,
@@ -349,17 +351,38 @@ export default function AdminPage() {
     }
   }
 
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0)
+  // Filter today's orders
+  const todayStr = new Date().toDateString()
+  const todayOrders = orders.filter(
+    (o) => new Date(o.created_at).toDateString() === todayStr
+  )
 
-  const paidRevenue = orders
-    .filter((o) => o.status === 'paid' || o.payments?.some((p) => p.slip_url))
+  const todayTransferRevenue = todayOrders
+    .filter((o) => o.payments?.some((p) => p.slip_url))
     .reduce((sum, o) => sum + (o.total || 0), 0)
 
-  const paidOrdersCount = orders.filter(
+  const todayCashRevenue = todayOrders
+    .filter((o) => o.status === 'paid' && !o.payments?.some((p) => p.slip_url))
+    .reduce((sum, o) => sum + (o.total || 0), 0)
+
+  const todayTotalRevenue = todayTransferRevenue + todayCashRevenue
+
+  const todayOrdersCount = todayOrders.filter(
     (o) => o.status === 'paid' || o.payments?.some((p) => p.slip_url)
   ).length
 
-  // Revenue chart data
+  // Overall total revenue
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0)
+
+  // Payment method breakdown for today
+  const paymentPieData = [
+    { name: 'เงินโอน (PromptPay)', value: todayTransferRevenue },
+    { name: 'เงินสด (Cash)', value: todayCashRevenue },
+  ].filter((item) => item.value > 0)
+
+  const PAYMENT_COLORS = ['#10b981', '#3b82f6']
+
+  // Revenue chart data (7 days)
   const chartDataMap: Record<string, number> = {}
   orders.forEach((o) => {
     const dateKey = new Date(o.created_at).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })
@@ -369,12 +392,6 @@ export default function AdminPage() {
     date: key,
     total: chartDataMap[key],
   })).slice(-7)
-  const statusPieData = [
-    { name: 'รอรับออเดอร์', value: orders.filter((o) => o.status === 'pending').length },
-    { name: 'กำลังทำ', value: orders.filter((o) => o.status === 'preparing').length },
-    { name: 'เสิร์ฟแล้ว', value: orders.filter((o) => o.status === 'served').length },
-    { name: 'ชำระแล้ว', value: orders.filter((o) => o.status === 'paid').length },
-  ].filter((item) => item.value > 0)
 
   // Current groups for selected menu item
   const currentMenuGroups = optionGroups.filter((g) => g.menu_item_id === selectedMenuId)
@@ -413,47 +430,65 @@ export default function AdminPage() {
       </header>
 
       {/* Metrics Cards */}
-      <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex items-center gap-4 rounded-3xl border border-border bg-card p-5 shadow-xs">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
             <DollarSign className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">ยอดขายออเดอร์รวมทั้งหมด</p>
-            <p className="font-display text-2xl font-bold text-primary">{totalRevenue} บาท</p>
+            <p className="text-xs font-semibold text-muted-foreground">ยอดขายรวมวันนี้</p>
+            <p className="font-display text-2xl font-bold text-primary">{todayTotalRevenue} บาท</p>
+            <p className="text-[10px] text-muted-foreground">โอน {todayTransferRevenue}฿ | สด {todayCashRevenue}฿</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 rounded-3xl border border-border bg-card p-5 shadow-xs">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-500/10 text-teal-600">
+            <Smartphone className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground">ยอดเงินโอน (PromptPay)</p>
+            <p className="font-display text-2xl font-bold text-teal-600">{todayTransferRevenue} บาท</p>
+            <p className="text-[10px] text-muted-foreground">สแกนแนบสลิปเรียบร้อย</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4 rounded-3xl border border-border bg-card p-5 shadow-xs">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600">
-            <ShoppingBag className="h-6 w-6" />
+            <Banknote className="h-6 w-6" />
+          </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">จำนวนออเดอร์ทั้งหมด</p>
-            <p className="font-display text-2xl font-bold text-card-foreground">{orders.length} รายการ</p>
+            <p className="text-xs font-semibold text-muted-foreground">ยอดเงินสดวันนี้</p>
+            <p className="font-display text-2xl font-bold text-blue-600">{todayCashRevenue} บาท</p>
+            <p className="text-[10px] text-muted-foreground">รับเงินสดหน้าร้าน</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4 rounded-3xl border border-border bg-card p-5 shadow-xs">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-600">
-            <CheckCircle2 className="h-6 w-6" />
+            <ShoppingBag className="h-6 w-6" />
           </div>
-            <p className="text-xs font-semibold text-muted-foreground">ยอดชำระแล้ว / มีสลิปโอน</p>
-            <p className="font-display text-2xl font-bold text-emerald-600">{paidRevenue} บาท ({paidOrdersCount} บิล)</p>
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground">บิลทั้งหมดวันนี้</p>
+            <p className="font-display text-2xl font-bold text-card-foreground">{todayOrdersCount} ออเดอร์</p>
+            <p className="text-[10px] text-muted-foreground">เฉลี่ยบิลละ {todayOrdersCount > 0 ? Math.round(todayTotalRevenue / todayOrdersCount) : 0} บาท</p>
           </div>
         </div>
       </div>
 
-      {/* Recharts Revenue & Status Charts */}
+      {/* Recharts Revenue & Payment Method Charts */}
       <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs lg:col-span-2">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <h2 className="font-display text-lg font-bold text-card-foreground">กราฟสรุปรายได้ (7 วันย้อนหลัง)</h2>
             </div>
           </div>
           <div className="mt-4 h-64 w-full">
             {revenueChartData.length === 0 ? (
               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                ยังไม่มีข้อมูลยอดขายที่ชำระแล้ว
+                ยังไม่มีข้อมูลยอดขาย
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -469,21 +504,21 @@ export default function AdminPage() {
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs lg:col-span-1">
-          <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">สัดส่วนสถานะออเดอร์</h2>
+          <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">สัดส่วนช่องทางชำระเงินวันนี้</h2>
           <div className="mt-4 h-64 w-full">
-            {statusPieData.length === 0 ? (
+            {paymentPieData.length === 0 ? (
               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                ยังไม่มีออเดอร์ในระบบ
+                ยังไม่มีชำระเงินวันนี้
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={statusPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label>
-                    {statusPieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Pie data={paymentPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label>
+                    {paymentPieData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={PAYMENT_COLORS[index % PAYMENT_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(val: any) => [`${val} บาท`, 'ยอดขาย']} />
                 </PieChart>
               </ResponsiveContainer>
             )}
