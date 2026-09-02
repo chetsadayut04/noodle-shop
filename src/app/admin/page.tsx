@@ -541,7 +541,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Recharts Revenue Bar Chart (Full Width, No Pie Chart) */}
+      {/* Recharts Revenue Bar Chart */}
       <div className="mx-auto mt-6 max-w-6xl">
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
           <div className="flex items-center justify-between border-b border-border pb-3">
@@ -892,9 +892,7 @@ export default function AdminPage() {
 
       {/* Recent Orders Table */}
       <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-border bg-card p-5 shadow-xs">
-        <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">
-          ประวัติคำสั่งซื้อ {selectedDate ? `ประจำวันที่ ${selectedDate}` : '(ทั้งหมด)'} ({filteredOrders.length} รายการ)
-        </h2>
+        <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">ประวัติคำสั่งซื้อทั้งหมด</h2>
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -908,14 +906,7 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-xs text-muted-foreground italic">
-                    ไม่มีประวัติคำสั่งซื้อสำหรับวันที่เลือก
-                  </td>
-                </tr>
-              ) : (
-                filteredOrders.map((o) => {
+              {orders.map((o) => {
                 const slipUrl = o.payments?.[0]?.slip_url
                 return (
                   <tr key={o.id} className="hover:bg-secondary/40">
@@ -927,10 +918,8 @@ export default function AdminPage() {
                     </td>
                     <td className="py-2.5 font-bold text-primary">{o.total}฿</td>
                     <td className="py-2.5">
-                      <select
-                        value={o.status}
-                        onChange={(e) => updateOrderStatus(o.id, e.target.value)}
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold border-0 focus:outline-none cursor-pointer ${
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
                           o.status === 'paid'
                             ? 'bg-emerald-500/15 text-emerald-700'
                             : o.status === 'served'
@@ -940,11 +929,14 @@ export default function AdminPage() {
                             : 'bg-amber-500/15 text-amber-700'
                         }`}
                       >
-                        <option value="pending">รอรับออเดอร์ (pending)</option>
-                        <option value="preparing">กำลังทำ (preparing)</option>
-                        <option value="served">เสิร์ฟแล้ว (served)</option>
-                        <option value="paid">ชำระแล้ว (paid)</option>
-                      </select>
+                        {o.status === 'paid'
+                          ? '✓ ชำระแล้ว'
+                          : o.status === 'served'
+                          ? '🍲 เสิร์ฟแล้ว'
+                          : o.status === 'preparing'
+                          ? '🍳 กำลังทำ'
+                          : '⏳ รอรับออเดอร์'}
+                      </span>
                     </td>
                     <td className="py-2.5 text-right">
                       {slipUrl ? (
@@ -961,7 +953,7 @@ export default function AdminPage() {
                     </td>
                   </tr>
                 )
-              }))}
+              })}
             </tbody>
           </table>
         </div>
