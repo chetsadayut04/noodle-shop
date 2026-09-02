@@ -892,7 +892,9 @@ export default function AdminPage() {
 
       {/* Recent Orders Table */}
       <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-border bg-card p-5 shadow-xs">
-        <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">ประวัติคำสั่งซื้อทั้งหมด</h2>
+        <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">
+          ประวัติคำสั่งซื้อ {selectedDate ? `ประจำวันที่ ${selectedDate}` : '(ทั้งหมด)'} ({filteredOrders.length} รายการ)
+        </h2>
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -906,54 +908,63 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {orders.map((o) => {
-                const slipUrl = o.payments?.[0]?.slip_url
-                return (
-                  <tr key={o.id} className="hover:bg-secondary/40">
-                    <td className="py-2.5 font-semibold text-card-foreground">
-                      โต๊ะ {o.table_id} <span className="ml-1 text-[11px] font-mono text-muted-foreground">(#{o.id.slice(0, 8).toUpperCase()})</span>
-                    </td>
-                    <td className="py-2.5 text-muted-foreground">
-                      {new Date(o.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="py-2.5 font-bold text-primary">{o.total}฿</td>
-                    <td className="py-2.5">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                          o.status === 'paid'
-                            ? 'bg-emerald-500/15 text-emerald-700'
-                            : o.status === 'served'
-                            ? 'bg-purple-500/15 text-purple-700'
-                            : o.status === 'preparing'
-                            ? 'bg-blue-500/15 text-blue-700'
-                            : 'bg-amber-500/15 text-amber-700'
-                        }`}
-                      >
-                        {o.status === 'paid'
-                          ? '✓ ชำระแล้ว'
-                          : o.status === 'served'
-                          ? '🍲 เสิร์ฟแล้ว'
-                          : o.status === 'preparing'
-                          ? '🍳 กำลังทำ'
-                          : '⏳ รอรับออเดอร์'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-right">
-                      {slipUrl ? (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedSlip(slipUrl)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground hover:bg-secondary/80"
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-xs text-muted-foreground italic">
+                    ไม่มีประวัติคำสั่งซื้อสำหรับวันที่เลือก
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map((o) => {
+                  const slipUrl = o.payments?.[0]?.slip_url
+                  const isPaid = o.status === 'paid' || !!slipUrl
+                  return (
+                    <tr key={o.id} className="hover:bg-secondary/40">
+                      <td className="py-2.5 font-semibold text-card-foreground">
+                        โต๊ะ {o.table_id} <span className="ml-1 text-[11px] font-mono text-muted-foreground">(#{o.id.slice(0, 8).toUpperCase()})</span>
+                      </td>
+                      <td className="py-2.5 text-muted-foreground">
+                        {new Date(o.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="py-2.5 font-bold text-primary">{o.total}฿</td>
+                      <td className="py-2.5">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                            isPaid
+                              ? 'bg-emerald-500/15 text-emerald-700'
+                              : o.status === 'served'
+                              ? 'bg-purple-500/15 text-purple-700'
+                              : o.status === 'preparing'
+                              ? 'bg-blue-500/15 text-blue-700'
+                              : 'bg-amber-500/15 text-amber-700'
+                          }`}
                         >
-                          <Eye className="h-3 w-3" /> สลิป
-                        </button>
-                      ) : (
-                        <span className="text-muted-foreground text-[10px]">-</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
+                          {isPaid
+                            ? '✓ ชำระแล้ว'
+                            : o.status === 'served'
+                            ? '🍲 เสิร์ฟแล้ว'
+                            : o.status === 'preparing'
+                            ? '🍳 กำลังทำ'
+                            : '⏳ รอรับออเดอร์'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right">
+                        {slipUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSlip(slipUrl)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground hover:bg-secondary/80"
+                          >
+                            <Eye className="h-3 w-3" /> สลิป
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground text-[10px]">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>

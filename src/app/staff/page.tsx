@@ -330,7 +330,7 @@ export default function StaffPage() {
             ) : (
               completedOrders.map((order) => {
                 const slipUrl = order.payments?.[0]?.slip_url
-                const isPaid = order.status === 'paid'
+                const isPaid = order.status === 'paid' || !!slipUrl
 
                 return (
                   <div key={order.id} className="rounded-2xl border border-border bg-background p-4 shadow-xs opacity-90 hover:opacity-100 transition-opacity">

@@ -122,6 +122,14 @@ export async function uploadSlipForOrder({
         status: 'submitted',
       })
       .eq('order_id', orderId)
+
+    // Auto-update order status to paid when customer uploads slip
+    await supabase
+      .from('orders')
+      .update({
+        status: 'paid',
+      })
+      .eq('id', orderId)
   }
 
   return slipUrl
@@ -203,6 +211,7 @@ export async function createOrderWithPayment({
   }
 
   // 3. Insert payment record
+  const paymentStatus = slipUrl ? 'submitted' : 'pending'
   const { data: payment } = await supabase
     .from('payments')
     .insert({
@@ -210,10 +219,17 @@ export async function createOrderWithPayment({
       method: 'promptpay',
       amount: total,
       slip_url: slipUrl,
-      status: 'pending',
+      status: paymentStatus,
     })
     .select()
     .single()
+
+  if (slipUrl) {
+    await supabase
+      .from('orders')
+      .update({ status: 'paid' })
+      .eq('id', order.id)
+  }
 
   return { order, payment }
 }
