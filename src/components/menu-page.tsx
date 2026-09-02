@@ -275,6 +275,11 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
           <div className="relative z-10 w-full max-w-sm rounded-3xl bg-card p-6 text-center shadow-2xl">
             <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500 animate-bounce" />
             <h2 className="mt-3 font-display text-2xl font-bold text-card-foreground">สั่งอาหารเรียบร้อยแล้ว!</h2>
+            {lastOrderId && (
+              <p className="mt-1 font-display text-sm font-bold text-primary">
+                หมายเลขออเดอร์: #{lastOrderId.slice(0, 8).toUpperCase()}
+              </p>
+            )}
             <p className="mt-2 text-xs text-muted-foreground">
               รายการอาหารของคุณส่งตรงไปยังห้องครัวแล้ว (โต๊ะ {tableId}) กรุณารอเสิร์ฟสักครู่
             </p>

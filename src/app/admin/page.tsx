@@ -812,7 +812,9 @@ export default function AdminPage() {
                 const slipUrl = o.payments?.[0]?.slip_url
                 return (
                   <tr key={o.id} className="hover:bg-secondary/40">
-                    <td className="py-2.5 font-semibold text-card-foreground">โต๊ะ {o.table_id}</td>
+                    <td className="py-2.5 font-semibold text-card-foreground">
+                      โต๊ะ {o.table_id} <span className="ml-1 text-[11px] font-mono text-muted-foreground">(#{o.id.slice(0, 8).toUpperCase()})</span>
+                    </td>
                     <td className="py-2.5 text-muted-foreground">
                       {new Date(o.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                     </td>

@@ -103,7 +103,9 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
             </span>
             <div>
               <h2 id="summary-title" className="font-display text-xl font-bold text-card-foreground">สรุปรายการอาหาร &amp; ใบเสร็จ</h2>
-              <p className="text-xs text-muted-foreground">โต๊ะ: {tableId}</p>
+              <p className="text-xs font-semibold text-muted-foreground">
+                โต๊ะ {tableId} {lastOrderId ? `· ออเดอร์ #${lastOrderId.slice(0, 8).toUpperCase()}` : ''}
+              </p>
             </div>
           </div>
           <button type="button" onClick={onClose} aria-label="ปิด" className="rounded-full bg-secondary p-2 text-secondary-foreground">

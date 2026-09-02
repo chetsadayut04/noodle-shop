@@ -250,7 +250,9 @@ export default function StaffPage() {
                 return (
                   <div key={order.id} className="rounded-2xl border border-border bg-background p-4 shadow-xs">
                     <div className="flex items-center justify-between border-b border-border pb-2">
-                      <span className="font-display text-lg font-bold text-primary">โต๊ะ {order.table_id}</span>
+                      <span className="font-display text-base font-bold text-primary">
+                        โต๊ะ {order.table_id} <span className="ml-1 text-xs font-normal text-foreground">(#{order.id.slice(0, 8).toUpperCase()})</span>
+                      </span>
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${isPending ? 'bg-amber-500/15 text-amber-700' : 'bg-blue-500/15 text-blue-700'}`}>
                         {isPending ? 'รอรับออเดอร์' : 'กำลังปรุงอาหาร'}
                       </span>
@@ -333,7 +335,9 @@ export default function StaffPage() {
                 return (
                   <div key={order.id} className="rounded-2xl border border-border bg-background p-4 shadow-xs opacity-90 hover:opacity-100 transition-opacity">
                     <div className="flex items-center justify-between border-b border-border pb-2">
-                      <span className="font-display text-base font-bold text-primary">โต๊ะ {order.table_id}</span>
+                      <span className="font-display text-base font-bold text-primary">
+                        โต๊ะ {order.table_id} <span className="ml-1 text-xs font-normal text-foreground">(#{order.id.slice(0, 8).toUpperCase()})</span>
+                      </span>
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${isPaid ? 'bg-emerald-500/15 text-emerald-700' : 'bg-purple-500/15 text-purple-700'}`}>
                         {isPaid ? 'ชำระแล้ว' : 'เสิร์ฟเรียบร้อย'}
                       </span>
