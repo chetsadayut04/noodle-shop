@@ -149,15 +149,6 @@ export default function StaffPage() {
             </button>
           )}
 
-          {/* Link to Store Front Menu */}
-          <button
-            type="button"
-            onClick={() => router.push('/')}
-            className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground"
-          >
-            <Store className="h-3.5 w-3.5" /> หน้าร้านค้า
-          </button>
-
           <button
             type="button"
             onClick={fetchOrders}
