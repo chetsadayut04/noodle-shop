@@ -22,6 +22,7 @@ import {
   Sliders,
   Banknote,
   Smartphone,
+  Calendar,
 } from 'lucide-react'
 import {
   BarChart,
@@ -102,6 +103,15 @@ export default function AdminPage() {
   const [inlineOptionNames, setInlineOptionNames] = useState<Record<string, string>>({})
   const [inlineOptionPrices, setInlineOptionPrices] = useState<Record<string, string>>({})
 
+  const getTodayISO = () => {
+    const d = new Date()
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayISO())
   const [loading, setLoading] = useState(true)
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
   const router = useRouter()
@@ -351,36 +361,29 @@ export default function AdminPage() {
     }
   }
 
-  // Filter today's orders
-  const todayStr = new Date().toDateString()
-  const todayOrders = orders.filter(
-    (o) => new Date(o.created_at).toDateString() === todayStr
-  )
+  // Filter orders by selectedDate
+  const filteredOrders = orders.filter((o) => {
+    if (!selectedDate) return true
+    const orderDate = new Date(o.created_at)
+    const y = orderDate.getFullYear()
+    const m = String(orderDate.getMonth() + 1).padStart(2, '0')
+    const d = String(orderDate.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}` === selectedDate
+  })
 
-  const todayTransferRevenue = todayOrders
+  const selectedTransferRevenue = filteredOrders
     .filter((o) => o.payments?.some((p) => p.slip_url))
     .reduce((sum, o) => sum + (o.total || 0), 0)
 
-  const todayCashRevenue = todayOrders
+  const selectedCashRevenue = filteredOrders
     .filter((o) => o.status === 'paid' && !o.payments?.some((p) => p.slip_url))
     .reduce((sum, o) => sum + (o.total || 0), 0)
 
-  const todayTotalRevenue = todayTransferRevenue + todayCashRevenue
+  const selectedTotalRevenue = selectedTransferRevenue + selectedCashRevenue
 
-  const todayOrdersCount = todayOrders.filter(
+  const selectedOrdersCount = filteredOrders.filter(
     (o) => o.status === 'paid' || o.payments?.some((p) => p.slip_url)
   ).length
-
-  // Overall total revenue
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0)
-
-  // Payment method breakdown for today
-  const paymentPieData = [
-    { name: 'เงินโอน (PromptPay)', value: todayTransferRevenue },
-    { name: 'เงินสด (Cash)', value: todayCashRevenue },
-  ].filter((item) => item.value > 0)
-
-  const PAYMENT_COLORS = ['#10b981', '#3b82f6']
 
   // Revenue chart data (7 days)
   const chartDataMap: Record<string, number> = {}
@@ -429,6 +432,68 @@ export default function AdminPage() {
         </div>
       </header>
 
+      {/* Date Filter Selector Bar */}
+      <div className="mx-auto mt-6 flex max-w-6xl flex-wrap items-center justify-between gap-4 rounded-3xl border border-border bg-card p-4 shadow-xs">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-primary" />
+          <div>
+            <h2 className="font-display text-sm font-bold text-card-foreground">
+              {selectedDate ? `ยอดขายประจำวันที่ ${new Date(selectedDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}` : 'ยอดขายรวมทุกวัน (ทั้งหมด)'}
+            </h2>
+            <p className="text-[11px] text-muted-foreground">สลับดูยอดรวม โอน เงินสด และประวัติออเดอร์ตามวันได้</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSelectedDate(getTodayISO())}
+            className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+              selectedDate === getTodayISO()
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            วันนี้
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const d = new Date()
+              d.setDate(d.getDate() - 1)
+              const y = d.getFullYear()
+              const m = String(d.getMonth() + 1).padStart(2, '0')
+              const day = String(d.getDate()).padStart(2, '0')
+              setSelectedDate(`${y}-${m}-${day}`)
+            }}
+            className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+              selectedDate !== getTodayISO() && selectedDate !== ''
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            เมื่อวาน
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedDate('')}
+            className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+              selectedDate === ''
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            ดูทั้งหมด
+          </button>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-bold text-primary focus:outline-none cursor-pointer"
+          />
+        </div>
+      </div>
+
       {/* Metrics Cards */}
       <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex items-center gap-4 rounded-3xl border border-border bg-card p-5 shadow-xs">
@@ -436,9 +501,9 @@ export default function AdminPage() {
             <DollarSign className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">ยอดขายรวมวันนี้</p>
-            <p className="font-display text-2xl font-bold text-primary">{todayTotalRevenue} บาท</p>
-            <p className="text-[10px] text-muted-foreground">โอน {todayTransferRevenue}฿ | สด {todayCashRevenue}฿</p>
+            <p className="text-xs font-semibold text-muted-foreground">ยอดขายรวม</p>
+            <p className="font-display text-2xl font-bold text-primary">{selectedTotalRevenue} บาท</p>
+            <p className="text-[10px] text-muted-foreground">โอน {selectedTransferRevenue}฿ | สด {selectedCashRevenue}฿</p>
           </div>
         </div>
 
@@ -448,7 +513,7 @@ export default function AdminPage() {
           </div>
           <div>
             <p className="text-xs font-semibold text-muted-foreground">ยอดเงินโอน (PromptPay)</p>
-            <p className="font-display text-2xl font-bold text-teal-600">{todayTransferRevenue} บาท</p>
+            <p className="font-display text-2xl font-bold text-teal-600">{selectedTransferRevenue} บาท</p>
             <p className="text-[10px] text-muted-foreground">สแกนแนบสลิปเรียบร้อย</p>
           </div>
         </div>
@@ -458,8 +523,8 @@ export default function AdminPage() {
             <Banknote className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">ยอดเงินสดวันนี้</p>
-            <p className="font-display text-2xl font-bold text-blue-600">{todayCashRevenue} บาท</p>
+            <p className="text-xs font-semibold text-muted-foreground">ยอดเงินสด</p>
+            <p className="font-display text-2xl font-bold text-blue-600">{selectedCashRevenue} บาท</p>
             <p className="text-[10px] text-muted-foreground">รับเงินสดหน้าร้าน</p>
           </div>
         </div>
@@ -469,16 +534,16 @@ export default function AdminPage() {
             <ShoppingBag className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">บิลทั้งหมดวันนี้</p>
-            <p className="font-display text-2xl font-bold text-card-foreground">{todayOrdersCount} ออเดอร์</p>
-            <p className="text-[10px] text-muted-foreground">เฉลี่ยบิลละ {todayOrdersCount > 0 ? Math.round(todayTotalRevenue / todayOrdersCount) : 0} บาท</p>
+            <p className="text-xs font-semibold text-muted-foreground">จำนวนบิลทั้งหมด</p>
+            <p className="font-display text-2xl font-bold text-card-foreground">{selectedOrdersCount} ออเดอร์</p>
+            <p className="text-[10px] text-muted-foreground">เฉลี่ยบิลละ {selectedOrdersCount > 0 ? Math.round(selectedTotalRevenue / selectedOrdersCount) : 0} บาท</p>
           </div>
         </div>
       </div>
 
-      {/* Recharts Revenue & Payment Method Charts */}
-      <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-3">
-        <section className="rounded-3xl border border-border bg-card p-5 shadow-xs lg:col-span-2">
+      {/* Recharts Revenue Bar Chart (Full Width, No Pie Chart) */}
+      <div className="mx-auto mt-6 max-w-6xl">
+        <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
@@ -498,28 +563,6 @@ export default function AdminPage() {
                   <Tooltip formatter={(value: any) => [`${value ?? 0} บาท`, 'ยอดขาย']} />
                   <Bar dataKey="total" fill="var(--color-primary, #b91c1c)" radius={[6, 6, 0, 0]} />
                 </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-border bg-card p-5 shadow-xs lg:col-span-1">
-          <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">สัดส่วนช่องทางชำระเงินวันนี้</h2>
-          <div className="mt-4 h-64 w-full">
-            {paymentPieData.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                ยังไม่มีชำระเงินวันนี้
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={paymentPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label>
-                    {paymentPieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={PAYMENT_COLORS[index % PAYMENT_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(val: any) => [`${val} บาท`, 'ยอดขาย']} />
-                </PieChart>
               </ResponsiveContainer>
             )}
           </div>
@@ -849,7 +892,9 @@ export default function AdminPage() {
 
       {/* Recent Orders Table */}
       <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-border bg-card p-5 shadow-xs">
-        <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">ประวัติคำสั่งซื้อทั้งหมด</h2>
+        <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">
+          ประวัติคำสั่งซื้อ {selectedDate ? `ประจำวันที่ ${selectedDate}` : '(ทั้งหมด)'} ({filteredOrders.length} รายการ)
+        </h2>
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -863,7 +908,14 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {orders.map((o) => {
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-xs text-muted-foreground italic">
+                    ไม่มีประวัติคำสั่งซื้อสำหรับวันที่เลือก
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map((o) => {
                 const slipUrl = o.payments?.[0]?.slip_url
                 return (
                   <tr key={o.id} className="hover:bg-secondary/40">
@@ -909,7 +961,7 @@ export default function AdminPage() {
                     </td>
                   </tr>
                 )
-              })}
+              }))}
             </tbody>
           </table>
         </div>
