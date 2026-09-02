@@ -202,59 +202,25 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', lines = [], onClose
               </div>
             </div>
 
-            {/* Slip Upload Area */}
-            <div className="mt-5 space-y-2">
-              <label className="block text-sm font-semibold text-card-foreground">แนบสลิปการโอนเงิน (ถ้ามี)</label>
-              
-              {slipPreview ? (
-                <div className="relative rounded-2xl border border-emerald-500/40 bg-emerald-500/5 p-3 text-center overflow-hidden">
-                  <div className="relative mx-auto inline-block max-w-full overflow-hidden rounded-xl border border-border shadow-xs bg-white">
-                    <img src={slipPreview} alt="Slip Preview" className="max-h-60 w-auto object-contain block mx-auto" />
-                    <button
-                      type="button"
-                      onClick={() => { setSlipFile(null); setSlipPreview(null) }}
-                      className="absolute top-1.5 right-1.5 rounded-full bg-black/60 p-1 text-white hover:bg-black/80 transition-colors"
-                      title="เปลี่ยนรูปสลิป"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div className="mt-2 text-center">
-                    <button
-                      type="button"
-                      onClick={() => { setSlipFile(null); setSlipPreview(null) }}
-                      className="text-xs font-semibold text-destructive hover:underline"
-                    >
-                      เปลี่ยนรูปสลิปใหม่
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-secondary/50 p-4 transition-colors hover:bg-secondary">
-                  <Upload className="h-6 w-6 text-muted-foreground" />
-                  <span className="mt-2 text-xs font-medium text-muted-foreground">กดเพื่ออัปโหลดสลิปเงินโอน</span>
-                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                </label>
-              )}
-            </div>
-
             {errorMessage && (
               <p className="mt-3 text-center text-xs font-medium text-destructive">{errorMessage}</p>
             )}
 
-            {/* Submit Button */}
+            {/* Direct Confirm Submit Button */}
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={loading}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 font-display text-lg font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-transform active:scale-[0.98] disabled:opacity-50"
+              disabled={loading || timeLeft <= 0}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 py-3.5 font-display text-base font-bold text-white shadow-lg shadow-emerald-600/25 transition-transform hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" /> กำลังส่งข้อมูล...
+                  <Loader2 className="h-5 w-5 animate-spin" /> กำลังส่งข้อมูลออเดอร์...
                 </>
               ) : (
-                'แจ้งชำระเงิน / ส่งรายการ'
+                <>
+                  <CheckCircle2 className="h-5 w-5" /> ยืนยันชำระเงินเรียบร้อย / ส่งออเดอร์
+                </>
               )}
             </button>
           </div>

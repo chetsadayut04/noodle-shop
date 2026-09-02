@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Receipt, X, QrCode, Upload, Check, Copy, Loader2, CheckCircle2, Download, Clock, RefreshCw } from 'lucide-react'
 import { optionPrice, optionSummary, optionsKey, type MenuItem, type SelectedOptions } from '@/lib/menu'
 import { generatePromptPayQR, uploadSlipForOrder, createOrderOnly } from '@/lib/payment'
+import { createClient } from '@/utils/supabase/client'
 
 export type SummaryLine = { item: MenuItem; selected: SelectedOptions; quantity: number }
 
@@ -90,12 +91,7 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleUploadSlip = async () => {
-    if (!slipFile) {
-      alert('กรุณาเลือกไฟล์สลิปการโอนเงินก่อนกดส่งครับ')
-      return
-    }
-
+  const handleConfirmPayment = async () => {
     setLoading(true)
     try {
       let targetOrderId = lastOrderId
@@ -111,21 +107,24 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
       }
 
       if (!targetOrderId) {
-        alert('ไม่พบบันทึกรายการสั่งซื้อ กรุณากดสั่งอาหารก่อนแนบสลิปครับ')
+        alert('ไม่พบบันทึกรายการสั่งซื้อ กรุณากดสั่งอาหารก่อนครับ')
         return
       }
 
-      await uploadSlipForOrder({ tableId, orderId: targetOrderId, slipFile })
+      const supabase = createClient()
+      await supabase.from('orders').update({ status: 'paid' }).eq('id', targetOrderId)
+      await supabase.from('payments').update({ status: 'submitted' }).eq('order_id', targetOrderId)
+
       setUploadSuccess(true)
       setTimeout(() => {
         setUploadSuccess(false)
         setShowQR(false)
         if (onPaymentSuccess) onPaymentSuccess()
         onClose()
-      }, 2200)
+      }, 2000)
     } catch (err: any) {
-      console.error('Upload slip error:', err)
-      alert(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดสลิป กรุณาลองใหม่อีกครั้ง')
+      console.error('Confirm payment error:', err)
+      alert(err.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลออเดอร์ กรุณาลองใหม่อีกครั้ง')
     } finally {
       setLoading(false)
     }
@@ -258,44 +257,27 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
                 </div>
               </div>
 
-              {/* Upload Slip Area */}
+              {/* 1-Click Confirm Payment Button */}
               {uploadSuccess ? (
                 <div className="rounded-xl bg-emerald-500/15 p-3 text-xs font-bold text-emerald-700">
                   <CheckCircle2 className="mx-auto h-5 w-5 text-emerald-600 mb-1" />
-                  ส่งสลิปการโอนเงินเรียบร้อย!
+                  ยืนยันชำระเงินเรียบร้อย สั่งอาหารสำเร็จ!
                 </div>
               ) : (
-                <div className="pt-2 text-left space-y-2">
-                  <label className="block text-xs font-semibold text-card-foreground">แนบสลิปโอนเงิน (ถ้ามี):</label>
-                  {slipPreview ? (
-                    <div className="relative rounded-2xl border border-emerald-500/40 bg-emerald-500/5 p-2.5 text-center overflow-hidden">
-                      <div className="relative mx-auto inline-block max-w-full overflow-hidden rounded-xl border border-border shadow-xs bg-white">
-                        <img src={slipPreview} alt="Slip" className="max-h-60 w-auto object-contain block mx-auto" />
-                        <button
-                          type="button"
-                          onClick={() => { setSlipFile(null); setSlipPreview(null) }}
-                          className="absolute top-1.5 right-1.5 rounded-full bg-black/60 p-1 text-white hover:bg-black/80 transition-colors"
-                          title="เปลี่ยนรูปสลิป"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleUploadSlip}
-                        disabled={loading}
-                        className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors active:scale-[0.99]"
-                      >
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'ส่งสลิปการชำระเงิน'}
-                      </button>
-                    </div>
+                <button
+                  type="button"
+                  onClick={handleConfirmPayment}
+                  disabled={loading || timeLeft <= 0}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 py-3 font-display text-sm font-bold text-white shadow-md hover:bg-emerald-700 transition-colors active:scale-[0.99] disabled:opacity-50"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card p-3 text-xs font-semibold text-muted-foreground hover:bg-secondary">
-                      <Upload className="h-4 w-4 text-primary" /> อัปโหลดสลิปโอนเงิน
-                      <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                    </label>
+                    <>
+                      <CheckCircle2 className="h-4 w-4" /> ยืนยันชำระเงินเรียบร้อย / ส่งออเดอร์
+                    </>
                   )}
-                </div>
+                </button>
               )}
             </div>
           )
