@@ -14,8 +14,10 @@ import {
   UtensilsCrossed,
   ShieldAlert,
   ShoppingBag,
-  Layers,
   Utensils,
+  X,
+  ArrowRight,
+  Check,
 } from 'lucide-react'
 
 type OrderItemOption = {
@@ -56,20 +58,13 @@ type MenuItem = {
   is_available: boolean
 }
 
-const statusSteps: { key: Order['status']; label: string; next: Order['status'] | null; color: string }[] = [
-  { key: 'pending', label: 'รอรับออเดอร์', next: 'preparing', color: 'bg-amber-500 text-amber-700' },
-  { key: 'preparing', label: 'กำลังทำ', next: 'served', color: 'bg-blue-500 text-blue-700' },
-  { key: 'served', label: 'เสิร์ฟแล้ว', next: 'paid', color: 'bg-purple-500 text-purple-700' },
-  { key: 'paid', label: 'ชำระแล้ว', next: null, color: 'bg-emerald-500 text-emerald-700' },
-]
-
 export default function StaffPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
-  const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'preparing' | 'served' | 'paid' | 'stock'>('active')
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
+  const [stockModalOpen, setStockModalOpen] = useState(false)
   const router = useRouter()
 
   const fetchOrdersAndMenu = async () => {
@@ -161,37 +156,49 @@ export default function StaffPage() {
     router.refresh()
   }
 
-  // Filter orders based on active tab
-  const filteredOrders = orders.filter((o) => {
-    if (activeTab === 'active') return o.status === 'pending' || o.status === 'preparing'
-    return o.status === activeTab
-  })
+  // 1. Orders to Do: pending + preparing
+  const todoOrders = orders.filter((o) => o.status === 'pending' || o.status === 'preparing')
 
-  const pendingCount = orders.filter((o) => o.status === 'pending').length
-  const preparingCount = orders.filter((o) => o.status === 'preparing').length
-  const activeCount = pendingCount + preparingCount
+  // 2. Completed Orders: served + paid
+  const completedOrders = orders.filter((o) => o.status === 'served' || o.status === 'paid')
+
+  const outOfStockCount = menuItems.filter((i) => !i.is_available).length
 
   return (
     <main className="min-h-dvh bg-background p-4 sm:p-6 pb-24">
       {/* Header */}
-      <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+      <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
             <UtensilsCrossed className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">ระบบจัดการห้องครัว &amp; สต็อกสินค้า</h1>
-            <p className="text-xs text-muted-foreground">จัดการออเดอร์ และเปิด-ปิดสินค้าหมดแบบเรียลไทม์</p>
+            <h1 className="font-display text-2xl font-bold text-foreground">ระบบจัดการออเดอร์ห้องครัว</h1>
+            <p className="text-xs text-muted-foreground">รายการออเดอร์ต้องทำ และ รายการที่ทำเสร็จแล้ว</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Stock Toggle Modal Trigger */}
+          <button
+            type="button"
+            onClick={() => setStockModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary border border-primary/20 hover:bg-primary/20"
+          >
+            <Utensils className="h-3.5 w-3.5" /> เปิด/ปิด สินค้าหมด
+            {outOfStockCount > 0 && (
+              <span className="rounded-full bg-destructive px-2 py-0.2 text-[10px] font-bold text-destructive-foreground">
+                {outOfStockCount}
+              </span>
+            )}
+          </button>
+
           {/* Link to Admin Page if user is Admin */}
           {userRole === 'admin' && (
             <button
               type="button"
               onClick={() => router.push('/admin')}
-              className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3.5 py-2 text-xs font-semibold text-primary hover:bg-primary/20"
+              className="flex items-center gap-1.5 rounded-full bg-secondary px-3.5 py-2 text-xs font-semibold text-secondary-foreground"
             >
               <ShieldAlert className="h-3.5 w-3.5" /> กลับหน้า Admin
             </button>
@@ -215,160 +222,46 @@ export default function StaffPage() {
         </div>
       </header>
 
-      {/* Clean Tab Filter Bar */}
-      <div className="mx-auto mt-6 max-w-6xl overflow-x-auto">
-        <div className="flex gap-2 border-b border-border pb-3">
-          <button
-            type="button"
-            onClick={() => setActiveTab('active')}
-            className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2.5 font-display text-xs font-bold transition-colors ${
-              activeTab === 'active'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'bg-secondary text-secondary-foreground'
-            }`}
-          >
-            🔥 ออเดอร์ต้องทำ
-            {activeCount > 0 && (
-              <span className="rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[10px] text-primary-foreground">
-                {activeCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('pending')}
-            className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 font-display text-xs font-bold transition-colors ${
-              activeTab === 'pending'
-                ? 'bg-amber-500 text-white shadow-sm'
-                : 'bg-secondary text-secondary-foreground'
-            }`}
-          >
-            รอรับออเดอร์ ({pendingCount})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('preparing')}
-            className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 font-display text-xs font-bold transition-colors ${
-              activeTab === 'preparing'
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'bg-secondary text-secondary-foreground'
-            }`}
-          >
-            กำลังทำ ({preparingCount})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('served')}
-            className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 font-display text-xs font-bold transition-colors ${
-              activeTab === 'served'
-                ? 'bg-purple-500 text-white shadow-sm'
-                : 'bg-secondary text-secondary-foreground'
-            }`}
-          >
-            เสิร์ฟแล้ว ({orders.filter((o) => o.status === 'served').length})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('paid')}
-            className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 font-display text-xs font-bold transition-colors ${
-              activeTab === 'paid'
-                ? 'bg-emerald-500 text-white shadow-sm'
-                : 'bg-secondary text-secondary-foreground'
-            }`}
-          >
-            ชำระแล้ว ({orders.filter((o) => o.status === 'paid').length})
-          </button>
-
-          {/* Stock Toggle Tab */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('stock')}
-            className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 font-display text-xs font-bold transition-colors ${
-              activeTab === 'stock'
-                ? 'bg-foreground text-background shadow-sm'
-                : 'bg-primary/10 text-primary border border-primary/20'
-            }`}
-          >
-            <Utensils className="h-3.5 w-3.5" /> เปิด/ปิด สินค้าหมด ({menuItems.filter((i) => !i.is_available).length} หมด)
-          </button>
-        </div>
-      </div>
-
-      {/* TAB CONTENT 1: Menu Stock Management Panel */}
-      {activeTab === 'stock' ? (
-        <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-border pb-4">
-            <div>
-              <h2 className="font-display text-xl font-bold text-card-foreground">คลังเปิด-ปิดเมนูสินค้าหมด</h2>
-              <p className="text-xs text-muted-foreground">เมื่อกด "สินค้าหมด" เมนูนั้นจะถูกระงับการสั่งในหน้าลูกค้าทันที</p>
+      {/* 2-COLUMN SINGLE PAGE LAYOUT */}
+      <div className="mx-auto mt-6 grid max-w-7xl grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* COLUMN 1: 🔥 ออเดอร์ที่ต้องทำ (Pending & Preparing) */}
+        <section className="flex flex-col rounded-3xl border border-amber-500/30 bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-3 w-3 rounded-full bg-amber-500 animate-pulse" />
+              <h2 className="font-display text-xl font-bold text-card-foreground">🔥 ออเดอร์ที่ต้องทำ</h2>
             </div>
+            <span className="rounded-full bg-amber-500/15 px-3 py-1 font-display text-xs font-bold text-amber-700">
+              {todoOrders.length} รายการ
+            </span>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {menuItems.map((item) => (
-              <div
-                key={item.id}
-                className={`flex items-center justify-between rounded-2xl border p-4 transition-all ${
-                  item.is_available ? 'border-border bg-background' : 'border-destructive/30 bg-destructive/5'
-                }`}
-              >
-                <div>
-                  <h3 className="font-display text-base font-bold text-card-foreground">{item.name}</h3>
-                  <p className="text-xs text-muted-foreground">{item.price} บาท · หมวด: {item.category_id}</p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => toggleMenuAvailability(item.id, item.is_available)}
-                  className={`rounded-full px-4 py-2 font-display text-xs font-bold shadow-xs transition-transform active:scale-95 ${
-                    item.is_available
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-destructive text-destructive-foreground'
-                  }`}
-                >
-                  {item.is_available ? '🟢 พร้อมขาย' : '🔴 สินค้าหมด'}
-                </button>
+          <div className="mt-4 flex-1 space-y-4 overflow-y-auto max-h-[75vh]">
+            {todoOrders.length === 0 ? (
+              <div className="py-16 text-center text-muted-foreground">
+                <ShoppingBag className="mx-auto h-10 w-10 text-muted-foreground/40" />
+                <p className="mt-2 text-xs">ไม่มีออเดอร์ค้างทำในขณะนี้</p>
               </div>
-            ))}
-          </div>
-        </section>
-      ) : (
-        /* TAB CONTENT 2: Orders View */
-        <div className="mx-auto mt-6 max-w-6xl">
-          {filteredOrders.length === 0 ? (
-            <div className="rounded-3xl border border-border bg-card p-12 text-center">
-              <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-3 font-display text-lg font-bold text-card-foreground">ไม่มีออเดอร์ในหมวดนี้</h3>
-              <p className="text-xs text-muted-foreground">ออเดอร์ใหม่จะปรากฏที่นี่แบบเรียลไทม์</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredOrders.map((order) => {
-                const stepObj = statusSteps.find((s) => s.key === order.status)
+            ) : (
+              todoOrders.map((order) => {
+                const isPending = order.status === 'pending'
                 const slipUrl = order.payments?.[0]?.slip_url
 
                 return (
-                  <article key={order.id} className="flex flex-col rounded-3xl border border-border bg-card p-5 shadow-sm">
-                    {/* Header */}
-                    <div className="flex items-center justify-between border-b border-border pb-3">
-                      <span className="font-display text-xl font-bold text-primary">โต๊ะ {order.table_id}</span>
-                      <span className={`rounded-full px-3 py-1 text-xs font-bold ${stepObj?.color || 'bg-secondary'}`}>
-                        {stepObj?.label || order.status}
+                  <div key={order.id} className="rounded-2xl border border-border bg-background p-4 shadow-xs">
+                    <div className="flex items-center justify-between border-b border-border pb-2">
+                      <span className="font-display text-lg font-bold text-primary">โต๊ะ {order.table_id}</span>
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${isPending ? 'bg-amber-500/15 text-amber-700' : 'bg-blue-500/15 text-blue-700'}`}>
+                        {isPending ? 'รอรับออเดอร์' : 'กำลังปรุงอาหาร'}
                       </span>
                     </div>
 
-                    {/* Time & Info */}
-                    <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                      <span>เวลาสั่ง: {new Date(order.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>
-                      <span className="font-mono text-[10px]">ID: {order.id.slice(0, 8)}</span>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      เวลาสั่ง: {new Date(order.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                     </div>
 
-                    {/* Items List */}
-                    <ul className="mt-4 flex-1 divide-y divide-border/60 text-xs">
+                    {/* Order Items Breakdown */}
+                    <ul className="mt-3 divide-y divide-border/60 text-xs">
                       {order.order_items?.map((item) => (
                         <li key={item.id} className="py-2">
                           <div className="flex justify-between font-semibold text-foreground text-sm">
@@ -384,49 +277,167 @@ export default function StaffPage() {
                       ))}
                     </ul>
 
-                    {/* Total & Slip */}
-                    <div className="mt-4 border-t border-border pt-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-muted-foreground">ยอดเงินรวม:</span>
-                        <span className="font-display text-lg font-bold text-primary">{order.total} บาท</span>
-                      </div>
-
-                      {slipUrl && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedSlip(slipUrl)}
-                          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-secondary py-2 text-xs font-semibold text-secondary-foreground hover:bg-secondary/80"
-                        >
-                          <Eye className="h-4 w-4 text-primary" /> ดูสลิปเงินโอน
-                        </button>
-                      )}
-
-                      {/* Advance Status Button */}
-                      {stepObj?.next && (
-                        <button
-                          type="button"
-                          onClick={() => updateOrderStatus(order.id, stepObj.next!)}
-                          className="mt-3 w-full rounded-2xl bg-primary py-3 font-display text-sm font-bold text-primary-foreground shadow-sm transition-transform active:scale-95"
-                        >
-                          เปลี่ยนสถานะเป็น → {statusSteps.find((s) => s.key === stepObj.next)?.label}
-                        </button>
-                      )}
+                    <div className="mt-3 flex items-center justify-between border-t border-border pt-2 text-xs">
+                      <span className="font-semibold text-muted-foreground">ราคารวม:</span>
+                      <span className="font-display text-base font-bold text-primary">{order.total} บาท</span>
                     </div>
-                  </article>
+
+                    {/* Status Action Button */}
+                    {isPending ? (
+                      <button
+                        type="button"
+                        onClick={() => updateOrderStatus(order.id, 'preparing')}
+                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 font-display text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
+                      >
+                        เริ่มทำอาหาร →
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => updateOrderStatus(order.id, 'served')}
+                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 font-display text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
+                      >
+                        <Check className="h-4 w-4" /> ทำเสร็จแล้ว (ส่งมอบ) →
+                      </button>
+                    )}
+                  </div>
                 )
-              })}
+              })
+            )}
+          </div>
+        </section>
+
+        {/* COLUMN 2: ✅ ทำเสร็จแล้ว (Served & Paid) */}
+        <section className="flex flex-col rounded-3xl border border-emerald-500/30 bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-3 w-3 rounded-full bg-emerald-500" />
+              <h2 className="font-display text-xl font-bold text-card-foreground">✅ ทำเสร็จแล้ว / ชำระแล้ว</h2>
             </div>
-          )}
+            <span className="rounded-full bg-emerald-500/15 px-3 py-1 font-display text-xs font-bold text-emerald-700">
+              {completedOrders.length} รายการ
+            </span>
+          </div>
+
+          <div className="mt-4 flex-1 space-y-4 overflow-y-auto max-h-[75vh]">
+            {completedOrders.length === 0 ? (
+              <div className="py-16 text-center text-muted-foreground">
+                <CheckCircle2 className="mx-auto h-10 w-10 text-muted-foreground/40" />
+                <p className="mt-2 text-xs">ยังไม่มีออเดอร์ที่เสร็จแล้ว</p>
+              </div>
+            ) : (
+              completedOrders.map((order) => {
+                const slipUrl = order.payments?.[0]?.slip_url
+                const isPaid = order.status === 'paid'
+
+                return (
+                  <div key={order.id} className="rounded-2xl border border-border bg-background p-4 shadow-xs opacity-90 hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-between border-b border-border pb-2">
+                      <span className="font-display text-base font-bold text-primary">โต๊ะ {order.table_id}</span>
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${isPaid ? 'bg-emerald-500/15 text-emerald-700' : 'bg-purple-500/15 text-purple-700'}`}>
+                        {isPaid ? 'ชำระแล้ว' : 'เสิร์ฟเรียบร้อย'}
+                      </span>
+                    </div>
+
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      เวลาเสร็จ: {new Date(order.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+
+                    {/* Order Items */}
+                    <ul className="mt-2 divide-y divide-border/40 text-xs">
+                      {order.order_items?.map((item) => (
+                        <li key={item.id} className="py-1">
+                          <div className="flex justify-between text-foreground">
+                            <span>{item.name} × {item.qty}</span>
+                            <span>{item.price * item.qty}฿</span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-xs">
+                      <span className="font-semibold text-muted-foreground">ราคารวม:</span>
+                      <span className="font-display text-sm font-bold text-primary">{order.total} บาท</span>
+                    </div>
+
+                    {slipUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSlip(slipUrl)}
+                        className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl bg-secondary py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-secondary/80"
+                      >
+                        <Eye className="h-3.5 w-3.5 text-primary" /> ดูสลิปเงินโอน
+                      </button>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* STOCK MANAGEMENT POPUP MODAL */}
+      {stockModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button type="button" onClick={() => setStockModalOpen(false)} className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" />
+          <div className="relative z-10 max-h-[85vh] w-full max-w-lg overflow-hidden rounded-3xl bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div>
+                <h3 className="font-display text-xl font-bold text-card-foreground">จัดการเปิด/ปิด เมนูสินค้าหมด</h3>
+                <p className="text-xs text-muted-foreground">กดสลับสถานะเพื่อระงับการสั่งสินค้าชั่วคราวหน้าร้าน</p>
+              </div>
+              <button type="button" onClick={() => setStockModalOpen(false)} className="rounded-full bg-secondary p-2">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+              {menuItems.map((item) => (
+                <div
+                  key={item.id}
+                  className={`flex items-center justify-between rounded-2xl border p-3.5 transition-all ${
+                    item.is_available ? 'border-border bg-background' : 'border-destructive/30 bg-destructive/5'
+                  }`}
+                >
+                  <div>
+                    <h4 className="font-display text-sm font-bold text-card-foreground">{item.name}</h4>
+                    <p className="text-xs text-muted-foreground">{item.price} บาท</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleMenuAvailability(item.id, item.is_available)}
+                    className={`rounded-full px-3.5 py-1.5 font-display text-xs font-bold shadow-xs transition-transform active:scale-95 ${
+                      item.is_available
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-destructive text-destructive-foreground'
+                    }`}
+                  >
+                    {item.is_available ? '🟢 พร้อมขาย' : '🔴 สินค้าหมด'}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setStockModalOpen(false)}
+              className="mt-5 w-full rounded-full bg-primary py-3 font-display text-sm font-bold text-primary-foreground"
+            >
+              ปิดหน้าต่าง
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Slip Modal View */}
+      {/* SLIP MODAL VIEW */}
       {selectedSlip && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button type="button" onClick={() => setSelectedSlip(null)} className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" />
           <div className="relative z-10 max-h-[85vh] w-full max-w-sm rounded-3xl bg-card p-4 shadow-2xl">
             <button type="button" onClick={() => setSelectedSlip(null)} className="absolute right-3 top-3 rounded-full bg-secondary p-1.5">
-              ✕
+              <X className="h-4 w-4" />
             </button>
             <h3 className="mb-3 font-display text-base font-bold text-card-foreground">สลิปการโอนเงิน</h3>
             <img src={selectedSlip} alt="Slip" className="mx-auto max-h-[70vh] rounded-2xl object-contain" />
