@@ -108,20 +108,29 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
                     {group.required && <span className="text-xs font-normal text-primary">จำเป็น</span>}
                   </legend>
                   <div className="grid grid-cols-2 gap-2">
-                    {group.options.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => choose(group.id, option)}
-                        className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                          selected[group.id]?.[0]?.id === option.id
-                            ? 'border-primary bg-primary/10 font-semibold text-primary'
-                            : 'border-border text-card-foreground'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+                    {group.options.map((option) => {
+                      const extraPrice = option.price ?? 0
+                      const priceLabel = extraPrice > 0 ? `+${extraPrice}฿` : '+0฿'
+                      const isSelected = selected[group.id]?.[0]?.id === option.id
+
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => choose(group.id, option)}
+                          className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left text-xs sm:text-sm transition-colors ${
+                            isSelected
+                              ? 'border-primary bg-primary/10 font-semibold text-primary'
+                              : 'border-border text-card-foreground hover:bg-secondary/40'
+                          }`}
+                        >
+                          <span>{option.label}</span>
+                          <span className={`text-[11px] font-bold ${extraPrice > 0 ? 'text-primary' : 'text-muted-foreground'}`}>
+                            {priceLabel}
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
                 </fieldset>
               ))}

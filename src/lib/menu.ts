@@ -37,18 +37,18 @@ export const categories: Category[] = [
 
 const noodleOptions = {
   groups: [
-    { id: 'noodle', label: 'เลือกเส้น', required: true, options: [{ id: 'senlek', label: 'เส้นเล็ก' }, { id: 'senyai', label: 'เส้นใหญ่' }, { id: 'บะหมี่', label: 'บะหมี่เหลือง' }, { id: 'วุ้นเส้น', label: 'วุ้นเส้น' }] },
-    { id: 'soup', label: 'เลือกน้ำ', required: true, options: [{ id: 'namtok', label: 'น้ำตก' }, { id: 'tom-yum', label: 'ต้มยำ' }, { id: 'แห้ง', label: 'แห้ง' }] },
-    { id: 'meat', label: 'เลือกเนื้อ', required: true, options: [{ id: 'pork', label: 'หมู' }, { id: 'beef', label: 'เนื้อ' }, { id: 'ลูกชิ้น', label: 'ลูกชิ้นปลา' }] },
-    { id: 'veg', label: 'เลือกผัก', options: [{ id: 'ถั่วงอก', label: 'ถั่วงอก' }, { id: 'ผักบุ้ง', label: 'ผักบุ้ง' }, { id: 'ไม่ผัก', label: 'ไม่ใส่ผัก' }] },
+    { id: 'noodle', label: 'เลือกเส้น', required: true, options: [{ id: 'senlek', label: 'เส้นเล็ก', price: 0 }, { id: 'senyai', label: 'เส้นใหญ่', price: 0 }, { id: 'บะหมี่', label: 'บะหมี่เหลือง', price: 5 }, { id: 'วุ้นเส้น', label: 'วุ้นเส้น', price: 0 }] },
+    { id: 'soup', label: 'เลือกน้ำ', required: true, options: [{ id: 'namtok', label: 'น้ำตก', price: 0 }, { id: 'tom-yum', label: 'ต้มยำ', price: 0 }, { id: 'แห้ง', label: 'แห้ง', price: 0 }] },
+    { id: 'meat', label: 'เลือกเนื้อ', required: true, options: [{ id: 'pork', label: 'หมู', price: 0 }, { id: 'beef', label: 'เนื้อ', price: 10 }, { id: 'ลูกชิ้น', label: 'ลูกชิ้นปลา', price: 0 }] },
+    { id: 'veg', label: 'เลือกผัก', options: [{ id: 'ถั่วงอก', label: 'ถั่วงอก', price: 0 }, { id: 'ผักบุ้ง', label: 'ผักบุ้ง', price: 0 }, { id: 'ไม่ผัก', label: 'ไม่ใส่ผัก', price: 0 }] },
   ],
   extras: [{ id: 'ไข่ต้ม', label: 'ไข่ต้ม', price: 10 }, { id: 'พิเศษ', label: 'เพิ่มเส้น', price: 10 }, { id: 'แคบหมู', label: 'แคบหมู', price: 15 }],
 }
 
 const drinkOptions = {
   groups: [
-    { id: 'sweetness', label: 'ระดับความหวาน', required: true, options: [{ id: 'หวานน้อย', label: 'หวานน้อย' }, { id: 'หวานปกติ', label: 'หวานปกติ' }, { id: 'หวานมาก', label: 'หวานมาก' }] },
-    { id: 'ice', label: 'ปริมาณน้ำแข็ง', required: true, options: [{ id: 'ไม่ใส่น้ำแข็ง', label: 'ไม่ใส่น้ำแข็ง' }, { id: 'น้ำแข็งน้อย', label: 'น้ำแข็งน้อย' }, { id: 'น้ำแข็งปกติ', label: 'น้ำแข็งปกติ' }] },
+    { id: 'sweetness', label: 'ระดับความหวาน', required: true, options: [{ id: 'หวานน้อย', label: 'หวานน้อย', price: 0 }, { id: 'หวานปกติ', label: 'หวานปกติ', price: 0 }, { id: 'หวานมาก', label: 'หวานมาก', price: 0 }] },
+    { id: 'ice', label: 'ปริมาณน้ำแข็ง', required: true, options: [{ id: 'ไม่ใส่น้ำแข็ง', label: 'ไม่ใส่น้ำแข็ง', price: 0 }, { id: 'น้ำแข็งน้อย', label: 'น้ำแข็งน้อย', price: 0 }, { id: 'น้ำแข็งปกติ', label: 'น้ำแข็งปกติ', price: 0 }] },
   ],
 }
 
