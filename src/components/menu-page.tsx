@@ -162,6 +162,12 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
     }
   }
 
+  const handlePaymentSuccess = () => {
+    setCart({})
+    setOrderedHistory([])
+    setLastOrderId(null)
+  }
+
   const activeSummaryLines = lines.length > 0 ? lines : orderedHistory
   const activeSummaryPrice = lines.length > 0 ? totalPrice : orderedHistoryPrice
 
@@ -258,6 +264,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
           tableId={tableId}
           lastOrderId={lastOrderId}
           onClose={() => setSummaryOpen(false)}
+          onPaymentSuccess={handlePaymentSuccess}
         />
       )}
 

@@ -13,9 +13,10 @@ type OrderSummaryProps = {
   tableId?: string
   lastOrderId?: string | null
   onClose: () => void
+  onPaymentSuccess?: () => void
 }
 
-export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, onClose }: OrderSummaryProps) {
+export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, onClose, onPaymentSuccess }: OrderSummaryProps) {
   const [showQR, setShowQR] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
   const [slipFile, setSlipFile] = useState<File | null>(null)
@@ -70,17 +71,14 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
         targetOrderId = newOrder.id
       }
 
-      if (!targetOrderId) {
-        alert('ไม่พบบันทึกรายการสั่งซื้อ กรุณากดสั่งอาหารก่อนแนบสลิปครับ')
-        return
-      }
-
-      await uploadSlipForOrder({ orderId: targetOrderId, slipFile })
+      await uploadSlipForOrder({ tableId, orderId: targetOrderId, slipFile })
       setUploadSuccess(true)
       setTimeout(() => {
         setUploadSuccess(false)
         setShowQR(false)
-      }, 2500)
+        if (onPaymentSuccess) onPaymentSuccess()
+        onClose()
+      }, 2200)
     } catch (err: any) {
       console.error('Upload slip error:', err)
       alert(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดสลิป กรุณาลองใหม่อีกครั้ง')
