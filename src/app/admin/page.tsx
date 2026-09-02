@@ -369,8 +369,6 @@ export default function AdminPage() {
     date: key,
     total: chartDataMap[key],
   })).slice(-7)
-
-  // Status breakdown chart data
   const statusPieData = [
     { name: 'รอรับออเดอร์', value: orders.filter((o) => o.status === 'pending').length },
     { name: 'กำลังทำ', value: orders.filter((o) => o.status === 'preparing').length },
@@ -429,7 +427,6 @@ export default function AdminPage() {
         <div className="flex items-center gap-4 rounded-3xl border border-border bg-card p-5 shadow-xs">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600">
             <ShoppingBag className="h-6 w-6" />
-          </div>
           <div>
             <p className="text-xs font-semibold text-muted-foreground">จำนวนออเดอร์ทั้งหมด</p>
             <p className="font-display text-2xl font-bold text-card-foreground">{orders.length} รายการ</p>
@@ -440,7 +437,6 @@ export default function AdminPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-600">
             <CheckCircle2 className="h-6 w-6" />
           </div>
-          <div>
             <p className="text-xs font-semibold text-muted-foreground">ยอดชำระแล้ว / มีสลิปโอน</p>
             <p className="font-display text-2xl font-bold text-emerald-600">{paidRevenue} บาท ({paidOrdersCount} บิล)</p>
           </div>
@@ -452,8 +448,6 @@ export default function AdminPage() {
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs lg:col-span-2">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              <h2 className="font-display text-lg font-bold text-card-foreground">กราฟสรุปรายได้ (ยอดขายรวม)</h2>
             </div>
           </div>
           <div className="mt-4 h-64 w-full">
@@ -839,12 +833,17 @@ export default function AdminPage() {
                 return (
                   <tr key={o.id} className="hover:bg-secondary/40">
                     <td className="py-2.5 font-semibold text-card-foreground">
+                      โต๊ะ {o.table_id} <span className="ml-1 text-[11px] font-mono text-muted-foreground">(#{o.id.slice(0, 8).toUpperCase()})</span>
+                    </td>
+                    <td className="py-2.5 text-muted-foreground">
                       {new Date(o.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="py-2.5 font-bold text-primary">{o.total}฿</td>
                     <td className="py-2.5">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      <select
+                        value={o.status}
+                        onChange={(e) => updateOrderStatus(o.id, e.target.value)}
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold border-0 focus:outline-none cursor-pointer ${
                           o.status === 'paid'
                             ? 'bg-emerald-500/15 text-emerald-700'
                             : o.status === 'served'
@@ -854,8 +853,11 @@ export default function AdminPage() {
                             : 'bg-amber-500/15 text-amber-700'
                         }`}
                       >
-                        {o.status}
-                      </span>
+                        <option value="pending">รอรับออเดอร์ (pending)</option>
+                        <option value="preparing">กำลังทำ (preparing)</option>
+                        <option value="served">เสิร์ฟแล้ว (served)</option>
+                        <option value="paid">ชำระแล้ว (paid)</option>
+                      </select>
                     </td>
                     <td className="py-2.5 text-right">
                       {slipUrl ? (
