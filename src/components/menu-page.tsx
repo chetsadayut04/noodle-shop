@@ -5,9 +5,9 @@ import { categories, menuItems, type MenuItem, type SelectedOptions, optionPrice
 import { MenuCard } from '@/components/menu-card'
 import { FloatingCart } from '@/components/floating-cart'
 import { OrderSummary } from '@/components/order-summary'
-import { PromptPayModal } from '@/components/promptpay-modal'
 import { createClient } from '@/utils/supabase/client'
-import { Receipt, UtensilsCrossed, Shield, UserCheck } from 'lucide-react'
+import { createOrderOnly } from '@/lib/payment'
+import { Receipt, UtensilsCrossed, Shield, UserCheck, CheckCircle2, Loader2 } from 'lucide-react'
 
 type CartEntry = { item: MenuItem; selected: SelectedOptions; quantity: number }
 
@@ -18,8 +18,13 @@ type MenuPageProps = {
 export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
   const [activeCategory, setActiveCategory] = useState(categories[0].id)
   const [cart, setCart] = useState<Record<string, CartEntry>>({})
+  const [orderedHistory, setOrderedHistory] = useState<CartEntry[]>([])
+  const [lastOrderId, setLastOrderId] = useState<string | null>(null)
+  
   const [summaryOpen, setSummaryOpen] = useState(false)
-  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [orderSuccessOpen, setOrderSuccessOpen] = useState(false)
+  const [submittingOrder, setSubmittingOrder] = useState(false)
+  
   const [userRole, setUserRole] = useState<string | null>(null)
   const [availabilityMap, setAvailabilityMap] = useState<Record<string, boolean>>({})
 
@@ -81,6 +86,37 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
       totalPrice: lines.reduce((sum, line) => sum + line.quantity * (line.item.price + optionPrice(line.selected)), 0),
     }
   }, [cart])
+
+  // Total price of past ordered history
+  const orderedHistoryPrice = useMemo(() => {
+    return orderedHistory.reduce((sum, line) => sum + line.quantity * (line.item.price + optionPrice(line.selected)), 0)
+  }, [orderedHistory])
+
+  // Handle direct order submission (NO immediate QR code)
+  const handlePlaceOrder = async () => {
+    if (lines.length === 0) return
+    setSubmittingOrder(true)
+    try {
+      const order = await createOrderOnly({
+        tableId,
+        total: totalPrice,
+        lines,
+      })
+
+      setLastOrderId(order.id)
+      setOrderedHistory((prev) => [...prev, ...lines])
+      setCart({})
+      setOrderSuccessOpen(true)
+    } catch (err: any) {
+      console.error('Place order error:', err)
+      alert(err.message || 'เกิดข้อผิดพลาดในการส่งคำสั่งซื้อ กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setSubmittingOrder(false)
+    }
+  }
+
+  const activeSummaryLines = lines.length > 0 ? lines : orderedHistory
+  const activeSummaryPrice = lines.length > 0 ? totalPrice : orderedHistoryPrice
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-3xl pb-28">
@@ -164,24 +200,52 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
         onAdd={addItem}
         onRemove={removeItem}
         onClear={() => setCart({})}
-        onCheckout={() => setCheckoutOpen(true)}
+        onCheckout={handlePlaceOrder}
       />
 
+      {/* Order Summary & Receipt Modal (Contains PromptPay QR Code Payment Option) */}
       {summaryOpen && (
-        <OrderSummary lines={lines} totalPrice={totalPrice} onClose={() => setSummaryOpen(false)} />
+        <OrderSummary
+          lines={activeSummaryLines}
+          totalPrice={activeSummaryPrice}
+          tableId={tableId}
+          lastOrderId={lastOrderId}
+          onClose={() => setSummaryOpen(false)}
+        />
       )}
 
-      {checkoutOpen && (
-        <PromptPayModal
-          totalPrice={totalPrice}
-          tableId={tableId}
-          lines={lines}
-          onClose={() => setCheckoutOpen(false)}
-          onSuccess={() => {
-            setCart({})
-            setCheckoutOpen(false)
-          }}
-        />
+      {/* Order Success Confirmation Popup */}
+      {orderSuccessOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button type="button" onClick={() => setOrderSuccessOpen(false)} className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" />
+          <div className="relative z-10 w-full max-w-sm rounded-3xl bg-card p-6 text-center shadow-2xl">
+            <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500 animate-bounce" />
+            <h2 className="mt-3 font-display text-2xl font-bold text-card-foreground">สั่งอาหารเรียบร้อยแล้ว!</h2>
+            <p className="mt-2 text-xs text-muted-foreground">
+              รายการอาหารของคุณส่งตรงไปยังห้องครัวแล้ว (โต๊ะ {tableId}) กรุณารอเสิร์ฟสักครู่
+            </p>
+            <p className="mt-3 text-[11px] font-semibold text-primary">
+              *คุณสามารถดูสรุปรายการ และสแกน QR Code ชำระเงินได้ที่ปุ่มรูปใบเสร็จ 🧾 มุมบนขวา
+            </p>
+            <button
+              type="button"
+              onClick={() => setOrderSuccessOpen(false)}
+              className="mt-5 w-full rounded-full bg-primary py-3 font-display text-sm font-bold text-primary-foreground shadow-sm"
+            >
+              ตกลง
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Order Loading Spinner Overlay */}
+      {submittingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4">
+          <div className="flex items-center gap-3 rounded-2xl bg-card px-6 py-4 shadow-xl">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="font-display text-sm font-bold text-card-foreground">กำลังส่งออเดอร์ไปที่ห้องครัว...</span>
+          </div>
+        </div>
       )}
     </main>
   )
