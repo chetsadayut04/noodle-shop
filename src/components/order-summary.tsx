@@ -71,6 +71,11 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
         targetOrderId = newOrder.id
       }
 
+      if (!targetOrderId) {
+        alert('ไม่พบบันทึกรายการสั่งซื้อ กรุณากดสั่งอาหารก่อนแนบสลิปครับ')
+        return
+      }
+
       await uploadSlipForOrder({ tableId, orderId: targetOrderId, slipFile })
       setUploadSuccess(true)
       setTimeout(() => {

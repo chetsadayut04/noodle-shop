@@ -81,14 +81,14 @@ export async function createOrderOnly({
   return order
 }
 
-// Upload Slip and attach to ALL active/unpaid orders of the table
+// Upload Slip and attach strictly 1-to-1 with specific orderId
 export async function uploadSlipForOrder({
-  tableId,
+  tableId = 'T1',
   orderId,
   slipFile,
 }: {
   tableId?: string
-  orderId?: string | null
+  orderId: string
   slipFile: File
 }) {
   const supabase = createClient()
@@ -96,7 +96,7 @@ export async function uploadSlipForOrder({
 
   if (slipFile && slipFile.size > 0) {
     const fileExt = slipFile.name.split('.').pop() || 'png'
-    const fileName = `table-${tableId || 'T1'}-${Date.now()}.${fileExt}`
+    const fileName = `order-${orderId}-${Date.now()}.${fileExt}`
 
     const { error: uploadError } = await supabase.storage
       .from('slips')
@@ -114,30 +114,14 @@ export async function uploadSlipForOrder({
       .getPublicUrl(fileName)
     slipUrl = publicUrlData?.publicUrl || null
 
-    // 1. Attach slip_url to ALL orders of this table (tableId) that are not paid yet
-    if (tableId) {
-      const { data: tableOrders } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('table_id', tableId)
-        .neq('status', 'paid')
-
-      if (tableOrders && tableOrders.length > 0) {
-        const orderIds = tableOrders.map((o) => o.id)
-        await supabase
-          .from('payments')
-          .update({ slip_url: slipUrl })
-          .in('order_id', orderIds)
-      }
-    }
-
-    // 2. Also ensure target orderId has slip_url attached if specifically given
-    if (orderId) {
-      await supabase
-        .from('payments')
-        .update({ slip_url: slipUrl })
-        .eq('order_id', orderId)
-    }
+    // Update ONLY the target orderId payment row
+    await supabase
+      .from('payments')
+      .update({
+        slip_url: slipUrl,
+        status: 'submitted',
+      })
+      .eq('order_id', orderId)
   }
 
   return slipUrl
