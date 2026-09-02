@@ -79,6 +79,9 @@ export default function AdminPage() {
   const [optionsList, setOptionsList] = useState<OptionItem[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   
+  // Selected Menu for Unified Option Editor
+  const [selectedMenuId, setSelectedMenuId] = useState<string>('')
+
   // New Table Form
   const [newTableId, setNewTableId] = useState('')
   const [newTableName, setNewTableName] = useState('')
@@ -90,14 +93,12 @@ export default function AdminPage() {
   const [newItemPrice, setNewItemPrice] = useState('')
 
   // New Option Group Form
-  const [newGroupMenuItemId, setNewGroupMenuItemId] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
   const [newGroupRequired, setNewGroupRequired] = useState(false)
 
-  // New Option Item Form
-  const [newOptionGroupId, setNewOptionGroupId] = useState('')
-  const [newOptionName, setNewOptionName] = useState('')
-  const [newOptionExtraPrice, setNewOptionExtraPrice] = useState('0')
+  // Inline Option Forms (mapped by groupId)
+  const [inlineOptionNames, setInlineOptionNames] = useState<Record<string, string>>({})
+  const [inlineOptionPrices, setInlineOptionPrices] = useState<Record<string, string>>({})
 
   const [loading, setLoading] = useState(true)
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
@@ -122,15 +123,16 @@ export default function AdminPage() {
         .order('category_id')
       setMenuItems(menuData || [])
 
+      if (menuData && menuData.length > 0 && !selectedMenuId) {
+        setSelectedMenuId(menuData[0].id)
+      }
+
       // Fetch option_groups
       const { data: groupData } = await supabase
         .from('option_groups')
         .select('*')
         .order('name')
       setOptionGroups(groupData || [])
-      if (groupData && groupData.length > 0 && !newOptionGroupId) {
-        setNewOptionGroupId(groupData[0].id)
-      }
 
       // Fetch options
       const { data: optionData } = await supabase
@@ -145,10 +147,6 @@ export default function AdminPage() {
         .select('*, payments(*)')
         .order('created_at', { ascending: false })
       setOrders(orderData || [])
-
-      if (menuData && menuData.length > 0 && !newGroupMenuItemId) {
-        setNewGroupMenuItemId(menuData[0].id)
-      }
     } catch (err) {
       console.error('Admin fetch error:', err)
     } finally {
@@ -220,11 +218,11 @@ export default function AdminPage() {
 
   const handleAddOptionGroup = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newGroupMenuItemId || !newGroupName) return
+    if (!selectedMenuId || !newGroupName) return
     try {
       const supabase = createClient()
       const { error } = await supabase.from('option_groups').insert({
-        menu_item_id: newGroupMenuItemId,
+        menu_item_id: selectedMenuId,
         name: newGroupName,
         is_required: newGroupRequired,
       })
@@ -252,21 +250,22 @@ export default function AdminPage() {
     }
   }
 
-  const handleAddOption = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newOptionGroupId || !newOptionName) return
+  const handleAddOptionInline = async (groupId: string) => {
+    const name = inlineOptionNames[groupId]?.trim()
+    if (!name) return
+    const extra_price = parseFloat(inlineOptionPrices[groupId] || '0')
     try {
       const supabase = createClient()
       const { error } = await supabase.from('options').insert({
-        group_id: newOptionGroupId,
-        name: newOptionName,
-        extra_price: parseFloat(newOptionExtraPrice || '0'),
+        group_id: groupId,
+        name,
+        extra_price,
       })
 
       if (error) throw error
 
-      setNewOptionName('')
-      setNewOptionExtraPrice('0')
+      setInlineOptionNames((prev) => ({ ...prev, [groupId]: '' }))
+      setInlineOptionPrices((prev) => ({ ...prev, [groupId]: '0' }))
       fetchData()
     } catch (err: any) {
       console.error('Add option error:', err)
@@ -361,6 +360,9 @@ export default function AdminPage() {
     { name: 'เสิร์ฟแล้ว', value: orders.filter((o) => o.status === 'served').length },
     { name: 'ชำระแล้ว', value: orders.filter((o) => o.status === 'paid').length },
   ].filter((item) => item.value > 0)
+
+  // Current groups for selected menu item
+  const currentMenuGroups = optionGroups.filter((g) => g.menu_item_id === selectedMenuId)
 
   return (
     <main className="min-h-dvh bg-background p-4 sm:p-6 pb-20">
@@ -480,7 +482,7 @@ export default function AdminPage() {
 
       {/* Table Management & Menu Item Management */}
       <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Manage Tables (is_active) */}
+        {/* Manage Tables */}
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
           <div className="flex items-center gap-2 border-b border-border pb-3">
             <TableIcon className="h-5 w-5 text-primary" />
@@ -551,7 +553,7 @@ export default function AdminPage() {
           </ul>
         </section>
 
-        {/* Manage Menu Items (Add & Available Toggle) */}
+        {/* Manage Menu Items */}
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
           <div className="flex items-center gap-2 border-b border-border pb-3">
             <Utensils className="h-5 w-5 text-primary" />
@@ -636,41 +638,141 @@ export default function AdminPage() {
         </section>
       </div>
 
-      {/* MENU OPTIONS MANAGEMENT (Option Groups & Options) */}
-      <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Manage Option Groups (option_groups) */}
-        <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
-          <div className="flex items-center gap-2 border-b border-border pb-3">
-            <Sliders className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-lg font-bold text-card-foreground">1. เพิ่มกลุ่มตัวเลือกปรับแต่ง (option_groups)</h2>
+      {/* UNIFIED MENU OPTIONS MANAGEMENT (Intuitive Single Card View) */}
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+          <div className="flex items-center gap-2">
+            <Sliders className="h-6 w-6 text-primary" />
+            <div>
+              <h2 className="font-display text-xl font-bold text-card-foreground">จัดการตัวเลือกปรับแต่งอาหาร (Menu Options)</h2>
+              <p className="text-xs text-muted-foreground">เลือกเมนู แล้วเพิ่มกลุ่มตัวเลือกและตัวเลือกย่อยในที่เดียว</p>
+            </div>
           </div>
 
-          <form onSubmit={handleAddOptionGroup} className="mt-4 space-y-3">
-            <div>
-              <label className="block text-[11px] font-semibold text-muted-foreground mb-1">เลือกเมนูอาหารที่ต้องการเพิ่มกลุ่ม:</label>
-              <select
-                value={newGroupMenuItemId}
-                onChange={(e) => setNewGroupMenuItemId(e.target.value)}
-                className="w-full rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-              >
-                {menuItems.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} ({item.id})
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Menu Selector Dropdown */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-muted-foreground whitespace-nowrap">เลือกเมนู:</label>
+            <select
+              value={selectedMenuId}
+              onChange={(e) => setSelectedMenuId(e.target.value)}
+              className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-2 text-xs font-bold text-primary focus:outline-none"
+            >
+              {menuItems.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} ({item.id})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-            <div className="grid grid-cols-2 gap-2">
+        {/* Display Group Cards for selectedMenuId */}
+        <div className="mt-6 space-y-6">
+          {currentMenuGroups.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-8 text-center">
+              <p className="text-sm font-semibold text-muted-foreground">ยังไม่มีกลุ่มตัวเลือกสำหรับเมนูนี้</p>
+              <p className="mt-1 text-xs text-muted-foreground">สร้างกลุ่มตัวเลือกแรกได้จากฟอร์มด้านล่าง (เช่น "เลือกเส้น" หรือ "ระดับความเผ็ด")</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {currentMenuGroups.map((group) => {
+                const groupOptions = optionsList.filter((o) => o.group_id === group.id)
+                return (
+                  <div key={group.id} className="flex flex-col justify-between rounded-2xl border border-border bg-background p-4 shadow-xs">
+                    <div>
+                      {/* Group Header */}
+                      <div className="flex items-center justify-between border-b border-border pb-3">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-display text-base font-bold text-card-foreground">{group.name}</h3>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              group.is_required ? 'bg-primary/15 text-primary' : 'bg-secondary text-muted-foreground'
+                            }`}
+                          >
+                            {group.is_required ? 'บังคับเลือก' : 'เลือกหรือไม่ก็ได้'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteOptionGroup(group.id)}
+                          className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          title="ลบกลุ่มนี้"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {/* Options List */}
+                      <ul className="mt-3 divide-y divide-border/60 text-xs">
+                        {groupOptions.length === 0 ? (
+                          <p className="py-3 text-center text-xs text-muted-foreground italic">ยังไม่มีตัวเลือกย่อยในกลุ่มนี้</p>
+                        ) : (
+                          groupOptions.map((opt) => (
+                            <li key={opt.id} className="flex items-center justify-between py-2">
+                              <span className="font-medium text-foreground">• {opt.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-primary">+{opt.extra_price}฿</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteOption(opt.id)}
+                                  className="rounded p-1 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    </div>
+
+                    {/* Inline Add Option Form */}
+                    <div className="mt-4 border-t border-border pt-3">
+                      <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">+ เพิ่มตัวเลือกย่อยเข้ากลุ่ม "{group.name}":</p>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          placeholder="ชื่อตัวเลือก (เช่น เส้นเล็ก)"
+                          value={inlineOptionNames[group.id] || ''}
+                          onChange={(e) => setInlineOptionNames({ ...inlineOptionNames, [group.id]: e.target.value })}
+                          className="flex-1 rounded-xl border border-border bg-card p-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="ราคาเพิ่ม"
+                          value={inlineOptionPrices[group.id] || '0'}
+                          onChange={(e) => setInlineOptionPrices({ ...inlineOptionPrices, [group.id]: e.target.value })}
+                          className="w-20 rounded-xl border border-border bg-card p-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddOptionInline(group.id)}
+                          className="rounded-xl bg-primary px-3 py-2 font-display text-xs font-bold text-primary-foreground shadow-xs active:scale-95"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Add New Group Form at Bottom */}
+          <form onSubmit={handleAddOptionGroup} className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+            <h3 className="font-display text-sm font-bold text-primary">+ สร้างกลุ่มตัวเลือกใหม่สำหรับเมนูนี้</h3>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <input
                 type="text"
                 required
-                placeholder="ชื่อกลุ่ม เช่น เลือกเส้น / ระดับความเผ็ด"
+                placeholder="ชื่อกลุ่มใหม่ เช่น เลือกเส้น / ท็อปปิ้งเพิ่ม"
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
-                className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                className="rounded-xl border border-border bg-card p-2.5 text-xs text-foreground focus:border-primary focus:outline-none sm:col-span-2"
               />
-              <label className="flex items-center gap-2 rounded-xl border border-border bg-background p-2 text-xs text-foreground cursor-pointer">
+              <label className="flex items-center gap-2 rounded-xl border border-border bg-card p-2.5 text-xs text-foreground cursor-pointer">
                 <input
                   type="checkbox"
                   checked={newGroupRequired}
@@ -680,120 +782,15 @@ export default function AdminPage() {
                 <span>จำเป็นต้องเลือก (is_required)</span>
               </label>
             </div>
-
             <button
               type="submit"
               className="flex w-full items-center justify-center gap-1 rounded-full bg-primary py-2.5 font-display text-xs font-bold text-primary-foreground shadow-xs"
             >
-              <Plus className="h-4 w-4" /> สร้างกลุ่มตัวเลือกใหม่
+              <Plus className="h-4 w-4" /> สร้างกลุ่มตัวเลือกสำหรับเมนูนี้
             </button>
           </form>
-
-          <ul className="mt-4 divide-y divide-border overflow-y-auto max-h-64">
-            {optionGroups.map((group) => {
-              const menuName = menuItems.find((m) => m.id === group.menu_item_id)?.name || group.menu_item_id
-              return (
-                <li key={group.id} className="flex items-center justify-between py-2.5 text-xs">
-                  <div>
-                    <span className="font-semibold text-card-foreground">{group.name}</span>
-                    <span className="ml-2 text-[11px] text-muted-foreground">({menuName})</span>
-                    {group.is_required && (
-                      <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">จำเป็น</span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteOptionGroup(group.id)}
-                    className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-
-        {/* Manage Option Items (options) */}
-        <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
-          <div className="flex items-center gap-2 border-b border-border pb-3">
-            <Plus className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-lg font-bold text-card-foreground">2. เพิ่มตัวเลือกย่อย + ราคาบวกเพิ่ม (options)</h2>
-          </div>
-
-          <form onSubmit={handleAddOption} className="mt-4 space-y-3">
-            <div>
-              <label className="block text-[11px] font-semibold text-muted-foreground mb-1">เลือกกลุ่มตัวเลือกที่ต้องการใส่ตัวเลือกย่อย:</label>
-              <select
-                value={newOptionGroupId}
-                onChange={(e) => setNewOptionGroupId(e.target.value)}
-                className="w-full rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-              >
-                {optionGroups.map((g) => {
-                  const menuName = menuItems.find((m) => m.id === g.menu_item_id)?.name || g.menu_item_id
-                  return (
-                    <option key={g.id} value={g.id}>
-                      {g.name} ({menuName})
-                    </option>
-                  )
-                })}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                required
-                placeholder="ชื่อตัวเลือกย่อย เช่น เส้นเล็ก / เผ็ดมาก"
-                value={newOptionName}
-                onChange={(e) => setNewOptionName(e.target.value)}
-                className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-              />
-              <input
-                type="number"
-                required
-                min="0"
-                step="1"
-                placeholder="ราคาเพิ่ม (เช่น 0 หรือ 10)"
-                value={newOptionExtraPrice}
-                onChange={(e) => setNewOptionExtraPrice(e.target.value)}
-                className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="flex w-full items-center justify-center gap-1 rounded-full bg-primary py-2.5 font-display text-xs font-bold text-primary-foreground shadow-xs"
-            >
-              <Plus className="h-4 w-4" /> เพิ่มตัวเลือกย่อย
-            </button>
-          </form>
-
-          <ul className="mt-4 divide-y divide-border overflow-y-auto max-h-64">
-            {optionsList.map((opt) => {
-              const groupName = optionGroups.find((g) => g.id === opt.group_id)?.name || opt.group_id
-              return (
-                <li key={opt.id} className="flex items-center justify-between py-2.5 text-xs">
-                  <div>
-                    <span className="font-semibold text-card-foreground">{opt.name}</span>
-                    <span className="ml-2 text-[11px] text-muted-foreground">({groupName})</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-primary">+{opt.extra_price}฿</span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteOption(opt.id)}
-                      className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-      </div>
+        </div>
+      </section>
 
       {/* Recent Orders Table */}
       <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-border bg-card p-5 shadow-xs">
