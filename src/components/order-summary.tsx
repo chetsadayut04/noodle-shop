@@ -25,7 +25,7 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
   const [copied, setCopied] = useState(false)
   const [uploadSuccess, setUploadSuccess] = useState(false)
 
-  const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0812345678'
+  const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0830256721'
 
   useEffect(() => {
     if (showQR && totalPrice > 0) {

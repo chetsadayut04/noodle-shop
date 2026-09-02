@@ -22,7 +22,7 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', lines = [], onClose
   const [completed, setCompleted] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0812345678'
+  const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0830256721'
 
   useEffect(() => {
     let isMounted = true
