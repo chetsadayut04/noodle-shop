@@ -15,7 +15,7 @@ const plexThai = IBM_Plex_Sans_Thai({
 })
 
 export const metadata: Metadata = {
-  title: 'ครัวริมคลอง | เมนูก๋วยเตี๋ยว',
+  title: 'ร้านแม่แต๋ | เมนูก๋วยเตี๋ยว & ข้าว',
   description: 'สั่งก๋วยเตี๋ยว ข้าว และเครื่องดื่มไทยรสเด็ด',
   icons: {
     icon: '/icon.svg',

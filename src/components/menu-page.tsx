@@ -176,7 +176,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
       <header className="flex items-start justify-between gap-4 px-5 pb-4 pt-8">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-display text-xs font-semibold uppercase tracking-widest text-accent-foreground">ครัวริมคลอง</span>
+            <span className="font-display text-xs font-semibold uppercase tracking-widest text-accent-foreground">ร้านแม่แต๋</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
               <UtensilsCrossed className="h-3 w-3" /> โต๊ะ {tableId}
             </span>
