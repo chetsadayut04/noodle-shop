@@ -111,7 +111,9 @@ export default function AdminPage() {
     return `${year}-${month}-${day}`
   }
 
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayISO())
+  type FilterRange = 'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom'
+  const [filterRange, setFilterRange] = useState<FilterRange>('today')
+  const [selectedCustomDate, setSelectedCustomDate] = useState<string>(getTodayISO())
   const [loading, setLoading] = useState(true)
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
   const router = useRouter()
@@ -361,15 +363,51 @@ export default function AdminPage() {
     }
   }
 
-  // Filter orders by selectedDate
+  // Filter orders by filterRange
   const filteredOrders = orders.filter((o) => {
-    if (!selectedDate) return true
     const orderDate = new Date(o.created_at)
-    const y = orderDate.getFullYear()
-    const m = String(orderDate.getMonth() + 1).padStart(2, '0')
-    const d = String(orderDate.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}` === selectedDate
+    const now = new Date()
+
+    if (filterRange === 'today') {
+      return orderDate.toDateString() === now.toDateString()
+    }
+    if (filterRange === 'yesterday') {
+      const yesterday = new Date()
+      yesterday.setDate(yesterday.getDate() - 1)
+      return orderDate.toDateString() === yesterday.toDateString()
+    }
+    if (filterRange === 'week') {
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      return orderDate >= sevenDaysAgo
+    }
+    if (filterRange === 'month') {
+      return (
+        orderDate.getMonth() === now.getMonth() &&
+        orderDate.getFullYear() === now.getFullYear()
+      )
+    }
+    if (filterRange === 'custom') {
+      if (!selectedCustomDate) return true
+      const y = orderDate.getFullYear()
+      const m = String(orderDate.getMonth() + 1).padStart(2, '0')
+      const d = String(orderDate.getDate()).padStart(2, '0')
+      return `${y}-${m}-${d}` === selectedCustomDate
+    }
+    return true // 'all'
   })
+
+  const getFilterLabel = () => {
+    if (filterRange === 'today') return 'ยอดขายประจำวันนี้'
+    if (filterRange === 'yesterday') return 'ยอดขายประจำเมื่อวาน'
+    if (filterRange === 'week') return 'ยอดขายสะสม 7 วันล่าสุด'
+    if (filterRange === 'month') return 'ยอดขายสะสมประจำเดือนนี้'
+    if (filterRange === 'custom')
+      return selectedCustomDate
+        ? `ยอดขายประจำวันที่ ${new Date(selectedCustomDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}`
+        : 'ยอดขายตามวันที่กำหนด'
+    return 'ยอดขายรวมทุกวัน (ทั้งหมด)'
+  }
 
   const selectedTransferRevenue = filteredOrders
     .filter((o) => o.payments?.some((p) => p.slip_url))
@@ -438,18 +476,18 @@ export default function AdminPage() {
           <Calendar className="h-5 w-5 text-primary" />
           <div>
             <h2 className="font-display text-sm font-bold text-card-foreground">
-              {selectedDate ? `ยอดขายประจำวันที่ ${new Date(selectedDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}` : 'ยอดขายรวมทุกวัน (ทั้งหมด)'}
+              {getFilterLabel()}
             </h2>
-            <p className="text-[11px] text-muted-foreground">สลับดูยอดรวม โอน เงินสด และประวัติออเดอร์ตามวันได้</p>
+            <p className="text-[11px] text-muted-foreground">สลับดูยอดรวม เงินโอน เงินสด และประวัติออเดอร์ตามช่วงเวลาได้</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setSelectedDate(getTodayISO())}
+            onClick={() => setFilterRange('today')}
             className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
-              selectedDate === getTodayISO()
+              filterRange === 'today'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             }`}
@@ -458,16 +496,9 @@ export default function AdminPage() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              const d = new Date()
-              d.setDate(d.getDate() - 1)
-              const y = d.getFullYear()
-              const m = String(d.getMonth() + 1).padStart(2, '0')
-              const day = String(d.getDate()).padStart(2, '0')
-              setSelectedDate(`${y}-${m}-${day}`)
-            }}
+            onClick={() => setFilterRange('yesterday')}
             className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
-              selectedDate !== getTodayISO() && selectedDate !== ''
+              filterRange === 'yesterday'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             }`}
@@ -476,9 +507,31 @@ export default function AdminPage() {
           </button>
           <button
             type="button"
-            onClick={() => setSelectedDate('')}
+            onClick={() => setFilterRange('week')}
             className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
-              selectedDate === ''
+              filterRange === 'week'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            7 วันล่าสุด
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterRange('month')}
+            className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+              filterRange === 'month'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            เดือนนี้
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterRange('all')}
+            className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+              filterRange === 'all'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             }`}
@@ -487,9 +540,16 @@ export default function AdminPage() {
           </button>
           <input
             type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-bold text-primary focus:outline-none cursor-pointer"
+            value={selectedCustomDate}
+            onChange={(e) => {
+              setSelectedCustomDate(e.target.value)
+              setFilterRange('custom')
+            }}
+            className={`rounded-full border px-3.5 py-1.5 text-xs font-bold focus:outline-none cursor-pointer transition-colors ${
+              filterRange === 'custom'
+                ? 'border-primary bg-primary/20 text-primary'
+                : 'border-border bg-secondary text-secondary-foreground'
+            }`}
           />
         </div>
       </div>
@@ -893,7 +953,7 @@ export default function AdminPage() {
       {/* Recent Orders Table */}
       <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-border bg-card p-5 shadow-xs">
         <h2 className="border-b border-border pb-3 font-display text-lg font-bold text-card-foreground">
-          ประวัติคำสั่งซื้อ {selectedDate ? `ประจำวันที่ ${selectedDate}` : '(ทั้งหมด)'} ({filteredOrders.length} รายการ)
+          ประวัติคำสั่งซื้อ: {getFilterLabel()} ({filteredOrders.length} รายการ)
         </h2>
 
         <div className="mt-4 overflow-x-auto">
