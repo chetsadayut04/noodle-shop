@@ -32,6 +32,7 @@ export type SelectedOptions = Record<string, MenuOption[]>
 export const categories: Category[] = [
   { id: 'guaytiew', label: 'ก๋วยเตี๋ยว' },
   { id: 'khaomangai', label: 'ข้าวมันไก่' },
+  { id: 'khaomangai', label: 'ข้าว' },
   { id: 'drinks', label: 'น้ำ' },
 ]
 
