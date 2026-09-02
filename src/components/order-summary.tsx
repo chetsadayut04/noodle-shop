@@ -185,15 +185,16 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
             <span className="font-display text-2xl font-bold text-primary">{totalPrice} บาท</span>
           </div>
 
-          {!showQR ? (
-            <button
-              type="button"
-              onClick={() => setShowQR(true)}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 font-display text-base font-bold text-primary-foreground shadow-md transition-transform active:scale-95"
-            >
-              <QrCode className="h-5 w-5" /> แสดง QR Code สแกนจ่าย (PromptPay)
-            </button>
-          ) : (
+          {lines.length > 0 && totalPrice > 0 ? (
+            !showQR ? (
+              <button
+                type="button"
+                onClick={() => setShowQR(true)}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 font-display text-base font-bold text-primary-foreground shadow-md transition-transform active:scale-95"
+              >
+                <QrCode className="h-5 w-5" /> แสดง QR Code สแกนจ่าย (PromptPay)
+              </button>
+            ) : (
             /* PromptPay QR Code & Slip Section */
             <div className="mt-4 rounded-2xl border border-border bg-secondary/30 p-4 text-center space-y-3">
               <div className="flex items-center justify-between border-b border-border pb-2">
@@ -297,7 +298,12 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
                 </div>
               )}
             </div>
-          )}
+          )
+        ) : (
+          <div className="mt-4 rounded-2xl bg-secondary/50 p-3.5 text-center text-xs font-semibold text-muted-foreground">
+            กรุณาเลือกรายการอาหารในเมนูก่อนชำระเงินครับ
+          </div>
+        )}
         </div>
       </section>
     </div>
