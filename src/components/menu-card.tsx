@@ -113,13 +113,16 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
                         key={option.id}
                         type="button"
                         onClick={() => choose(group.id, option)}
-                        className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                        className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left text-xs sm:text-sm ${
                           selected[group.id]?.[0]?.id === option.id
                             ? 'border-primary bg-primary/10 font-semibold text-primary'
-                            : 'border-border text-card-foreground'
+                            : 'border-border text-card-foreground hover:bg-secondary/40'
                         }`}
                       >
-                        {option.label}
+                        <span>{option.label}</span>
+                        <span className={`text-xs font-semibold ${option.price ? 'text-primary' : 'text-muted-foreground'}`}>
+                          {option.price ? `+${option.price}฿` : '+0฿'}
+                        </span>
                       </button>
                     ))}
                   </div>
