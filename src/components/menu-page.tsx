@@ -21,14 +21,35 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [availabilityMap, setAvailabilityMap] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const supabase = createClient()
+
+    // Fetch user role
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) {
         setUserRole(data.user.user_metadata?.role || 'staff')
       }
     })
+
+    // Fetch live menu items availability
+    async function fetchAvailability() {
+      try {
+        const { data } = await supabase.from('menu_items').select('id, is_available')
+        if (data) {
+          const map: Record<string, boolean> = {}
+          data.forEach((item) => {
+            map[item.id] = item.is_available
+          })
+          setAvailabilityMap(map)
+        }
+      } catch (err) {
+        console.error('Fetch availability error:', err)
+      }
+    }
+
+    fetchAvailability()
   }, [])
 
   const addItem = (item: MenuItem, selected: SelectedOptions) => {
@@ -129,6 +150,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
             key={item.id}
             item={item}
             quantity={Object.values(cart).filter((x) => x.item.id === item.id).reduce((n, x) => n + x.quantity, 0)}
+            isAvailable={availabilityMap[item.id] ?? true}
             onAdd={addItem}
             onRemove={removeItemByMenu}
           />
