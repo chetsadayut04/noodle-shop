@@ -1,12 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { categories, menuItems, type MenuItem, type SelectedOptions, optionPrice, optionsKey } from '@/lib/menu'
 import { MenuCard } from '@/components/menu-card'
 import { FloatingCart } from '@/components/floating-cart'
 import { OrderSummary } from '@/components/order-summary'
 import { PromptPayModal } from '@/components/promptpay-modal'
-import { Receipt, UtensilsCrossed } from 'lucide-react'
+import { createClient } from '@/utils/supabase/client'
+import { Receipt, UtensilsCrossed, Shield, UserCheck } from 'lucide-react'
 
 type CartEntry = { item: MenuItem; selected: SelectedOptions; quantity: number }
 
@@ -19,6 +20,16 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
   const [cart, setCart] = useState<Record<string, CartEntry>>({})
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+        setUserRole(data.user.user_metadata?.role || 'staff')
+      }
+    })
+  }, [])
 
   const addItem = (item: MenuItem, selected: SelectedOptions) => {
     const key = `${item.id}-${optionsKey(selected)}`
@@ -63,14 +74,36 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
           <h1 className="mt-1 font-display text-3xl font-bold text-foreground text-balance">ก๋วยเตี๋ยว &amp; ข้าวมันไก่</h1>
           <p className="mt-2 text-pretty text-muted-foreground">รสชาติต้นตำรับ เส้นเหนียวนุ่ม น้ำซุปเข้มข้น พร้อมเสิร์ฟความอร่อยถึงโต๊ะคุณ</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setSummaryOpen(true)}
-          aria-label="ดูสรุปรายการอาหารและค่าใช้จ่าย"
-          className="mt-0 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card text-primary shadow-sm ring-1 ring-border transition-transform active:scale-95"
-        >
-          <Receipt className="h-5 w-5" />
-        </button>
+
+        <div className="flex items-center gap-2">
+          {userRole && (
+            <div className="flex flex-col gap-1 sm:flex-row">
+              {userRole === 'admin' && (
+                <a
+                  href="/admin"
+                  className="inline-flex items-center gap-1 rounded-2xl bg-primary/10 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/20"
+                >
+                  <Shield className="h-3.5 w-3.5" /> Admin
+                </a>
+              )}
+              <a
+                href="/staff"
+                className="inline-flex items-center gap-1 rounded-2xl bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground hover:bg-secondary/80"
+              >
+                <UserCheck className="h-3.5 w-3.5" /> Staff
+              </a>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setSummaryOpen(true)}
+            aria-label="ดูสรุปรายการอาหารและค่าใช้จ่าย"
+            className="mt-0 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card text-primary shadow-sm ring-1 ring-border transition-transform active:scale-95"
+          >
+            <Receipt className="h-5 w-5" />
+          </button>
+        </div>
       </header>
 
       <nav aria-label="หมวดหมู่เมนู" className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">

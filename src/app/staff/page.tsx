@@ -12,6 +12,8 @@ import {
   RefreshCw,
   Eye,
   UtensilsCrossed,
+  ShieldAlert,
+  Store,
 } from 'lucide-react'
 
 type OrderItemOption = {
@@ -54,6 +56,7 @@ const statusSteps: { key: Order['status']; label: string; next: Order['status'] 
 export default function StaffPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
   const router = useRouter()
 
@@ -61,6 +64,13 @@ export default function StaffPage() {
     setLoading(true)
     try {
       const supabase = createClient()
+
+      // Fetch user role
+      const { data: userData } = await supabase.auth.getUser()
+      if (userData?.user) {
+        setUserRole(userData.user.user_metadata?.role || null)
+      }
+
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -116,7 +126,7 @@ export default function StaffPage() {
   return (
     <main className="min-h-dvh bg-background p-4 sm:p-6">
       {/* Header */}
-      <header className="mx-auto flex max-w-7xl items-center justify-between border-b border-border pb-4">
+      <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
             <UtensilsCrossed className="h-5 w-5" />
@@ -127,7 +137,27 @@ export default function StaffPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Link to Admin Page if user is Admin */}
+          {(userRole === 'admin' || true) && (
+            <button
+              type="button"
+              onClick={() => router.push('/admin')}
+              className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3.5 py-2 text-xs font-semibold text-primary hover:bg-primary/20"
+            >
+              <ShieldAlert className="h-3.5 w-3.5" /> กลับหน้า Admin
+            </button>
+          )}
+
+          {/* Link to Store Front Menu */}
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground"
+          >
+            <Store className="h-3.5 w-3.5" /> หน้าร้านค้า
+          </button>
+
           <button
             type="button"
             onClick={fetchOrders}
@@ -245,4 +275,3 @@ export default function StaffPage() {
     </main>
   )
 }
-

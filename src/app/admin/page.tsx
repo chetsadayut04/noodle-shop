@@ -271,6 +271,14 @@ export default function AdminPage() {
 
           <button
             type="button"
+            onClick={() => router.push('/')}
+            className="flex items-center gap-1 rounded-full bg-secondary px-3.5 py-2 text-xs font-semibold text-secondary-foreground"
+          >
+            หน้าร้านค้า
+          </button>
+
+          <button
+            type="button"
             onClick={handleLogout}
             className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/20"
           >
