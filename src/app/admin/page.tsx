@@ -484,9 +484,18 @@ export default function AdminPage() {
       <div className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Manage Tables */}
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
-          <div className="flex items-center gap-2 border-b border-border pb-3">
-            <TableIcon className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-lg font-bold text-card-foreground">จัดการโต๊ะและลิงก์ QR Code (/table/[id])</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              <TableIcon className="h-5 w-5 text-primary" />
+              <h2 className="font-display text-lg font-bold text-card-foreground">จัดการโต๊ะและลิงก์ QR Code</h2>
+            </div>
+            <a
+              href="/admin/print-qr"
+              target="_blank"
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3.5 py-1.5 text-xs font-bold text-primary border border-primary/20 hover:bg-primary/20"
+            >
+              <QrCode className="h-3.5 w-3.5" /> 🖨️ พิมพ์ป้าย QR ตั้งโต๊ะทุกโต๊ะ
+            </a>
           </div>
 
           <form onSubmit={handleAddTable} className="mt-4 space-y-3">
