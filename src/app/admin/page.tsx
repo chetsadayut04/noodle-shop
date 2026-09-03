@@ -93,7 +93,7 @@ export default function AdminPage() {
   // New Menu Item Form
   const [newItemId, setNewItemId] = useState('')
   const [newItemName, setNewItemName] = useState('')
-  const [newItemCategory, setNewItemCategory] = useState('guaytiew')
+  const [newItemCategory, setNewItemCategory] = useState('noodles')
   const [newItemPrice, setNewItemPrice] = useState('')
 
   // New Option Group Form
@@ -963,9 +963,9 @@ export default function AdminPage() {
                 onChange={(e) => setNewItemCategory(e.target.value)}
                 className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
               >
-                <option value="guaytiew">ก๋วยเตี๋ยว (guaytiew)</option>
-                <option value="khaomangai">ข้าว (khaomangai)</option>
-                <option value="drinks">เครื่องดื่ม (drinks)</option>
+                <option value="noodles">🍜 เมนูเส้น (noodles)</option>
+                <option value="side_dishes">🍢 ทานเล่น / เพิ่มเติม (side_dishes)</option>
+                <option value="drinks">🥤 เครื่องดื่ม (drinks)</option>
               </select>
               <input
                 type="number"
