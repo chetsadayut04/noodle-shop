@@ -125,7 +125,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
         const { data: dbGroups } = await supabase.from('option_groups').select('*')
         const { data: dbOptions } = await supabase.from('options').select('*')
 
-        if (items) {
+        if (items && items.length > 0) {
           const map: Record<string, boolean> = {}
           items.forEach((item) => {
             map[item.id] = item.is_available
@@ -166,9 +166,13 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
           })
 
           setDbMenuItems(dynamicMenuItems)
+        } else {
+          // 🛡️ When DB is empty, use all 31 authentic store items from static menu
+          setDbMenuItems(staticMenuItems)
         }
       } catch (err) {
         console.error('Fetch menu items & options error:', err)
+        setDbMenuItems(staticMenuItems)
       }
     }
 
@@ -271,11 +275,11 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
             </div>
 
             <h1 className="font-display text-3xl sm:text-4xl font-black tracking-tight text-white drop-shadow-sm">
-              ร้านแม่แต๋ <span className="text-amber-300 text-2xl sm:text-3xl font-normal">| ก๋วยเตี๋ยว &amp; ข้าว</span>
+              ร้านแม่แต๋ <span className="text-amber-300 text-2xl sm:text-3xl font-normal">| ก๋วยเตี๋ยว &amp; เครื่องดื่ม</span>
             </h1>
 
             <p className="text-xs sm:text-sm text-amber-100/85 leading-relaxed max-w-xl">
-              สูตรลับน้ำซุปหอมเข้มข้น เส้นเหนียวนุ่ม เนื้อหมูหมักนุ่มละมุน สั่งอาหารส่งตรงถึงห้องครัวได้ทันที
+              สูตรลับน้ำซุปหอมเข้มข้น เส้นเหนียวนุ่ม หมูและเนื้อตุ๋นยาจีนเปื่อยละมุน พร้อมเครื่องดื่มสดชื่น
             </p>
           </div>
 
