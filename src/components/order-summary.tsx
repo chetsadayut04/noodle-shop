@@ -118,7 +118,6 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
         .update({
           status: 'paid',
           payment_method: 'promptpay',
-          method: 'promptpay',
         })
         .eq('order_id', targetOrderId)
 

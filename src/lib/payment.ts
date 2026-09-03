@@ -80,7 +80,7 @@ export async function createOrderOnly({
   // 3. Create initial pending payment record
   await supabase.from('payments').insert({
     order_id: order.id,
-    method: 'promptpay',
+    payment_method: 'promptpay',
     amount: total,
     status: 'pending',
   })
@@ -230,7 +230,7 @@ export async function createOrderWithPayment({
     .from('payments')
     .insert({
       order_id: order.id,
-      method: 'promptpay',
+      payment_method: 'promptpay',
       amount: total,
       slip_url: slipUrl,
       status: paymentStatus,

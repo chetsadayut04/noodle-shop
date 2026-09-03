@@ -244,7 +244,6 @@ export default function StaffPage() {
             .update({
               status: 'paid',
               payment_method: paymentMethod,
-              method: paymentMethod,
             })
             .eq('order_id', orderId)
         } else {
@@ -252,7 +251,6 @@ export default function StaffPage() {
             order_id: orderId,
             status: 'paid',
             payment_method: paymentMethod,
-            method: paymentMethod,
             amount: 0,
           })
         }
@@ -271,7 +269,6 @@ export default function StaffPage() {
                         ...p,
                         status: 'paid',
                         payment_method: paymentMethod,
-                        method: paymentMethod,
                       }))
                     : [
                         {
@@ -279,7 +276,6 @@ export default function StaffPage() {
                           slip_url: null,
                           status: 'paid',
                           payment_method: paymentMethod,
-                          method: paymentMethod,
                         },
                       ],
               }
