@@ -23,11 +23,51 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
   
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [orderSuccessOpen, setOrderSuccessOpen] = useState(false)
+  const [billPaidSuccessOpen, setBillPaidSuccessOpen] = useState(false)
   const [submittingOrder, setSubmittingOrder] = useState(false)
   
   const [userRole, setUserRole] = useState<string | null>(null)
   const [availabilityMap, setAvailabilityMap] = useState<Record<string, boolean>>({})
   const [dbMenuItems, setDbMenuItems] = useState<MenuItem[]>(staticMenuItems)
+
+  // Real-time listener: When staff marks order as PAID, automatically reset customer's bill & cart
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`realtime-customer-table-${tableId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+        },
+        (payload) => {
+          const updated = payload.new as any
+          if (
+            updated &&
+            (updated.table_id === tableId || (lastOrderId && updated.id === lastOrderId))
+          ) {
+            if (updated.status === 'paid') {
+              // 1. Reset all local cart & history states
+              setCart({})
+              setOrderedHistory([])
+              setLastOrderId(null)
+              // 2. Close any open modals
+              setSummaryOpen(false)
+              setOrderSuccessOpen(false)
+              // 3. Open Bill Paid celebration modal
+              setBillPaidSuccessOpen(true)
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [tableId, lastOrderId])
 
   useEffect(() => {
     const supabase = createClient()
@@ -301,6 +341,30 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
               className="mt-5 w-full rounded-full bg-primary py-3 font-display text-sm font-bold text-primary-foreground shadow-sm"
             >
               ตกลง
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bill Paid Realtime Success Modal (When staff marks paid) */}
+      {billPaidSuccessOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button type="button" onClick={() => setBillPaidSuccessOpen(false)} className="absolute inset-0 bg-foreground/50 backdrop-blur-sm" />
+          <div className="relative z-10 w-full max-w-sm rounded-3xl bg-card p-6 text-center shadow-2xl border border-border">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600">
+              <CheckCircle2 className="h-10 w-10 animate-bounce" />
+            </div>
+            <h2 className="mt-4 font-display text-2xl font-bold text-card-foreground">ชำระเงินเรียบร้อยแล้ว!</h2>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+              แม่ค้าได้รับการชำระเงินและปิดบิลเรียบร้อยแล้วครับ<br />
+              ขอบคุณที่มาอุดหนุน <span className="font-bold text-primary">ร้านแม่แต๋</span> ครับ 🙏🍜✨
+            </p>
+            <button
+              type="button"
+              onClick={() => setBillPaidSuccessOpen(false)}
+              className="mt-6 w-full rounded-full bg-primary py-3 font-display text-sm font-bold text-primary-foreground shadow-md transition-transform active:scale-95"
+            >
+              ตกลง / สั่งอาหารใหม่
             </button>
           </div>
         </div>

@@ -65,14 +65,16 @@ export const menuItems: MenuItem[] = [
   { id: 'kek-huay', name: 'เก๊กฮวยเย็น', description: 'ชาดอกเก๊กฮวย หอมชื่นใจ ดับร้อน', price: 25, image: '/food/kek-huay.png', category: 'drinks', options: drinkOptions },
 ]
 
-export const optionSummary = (selected: SelectedOptions, instructions?: string) => {
+export const optionSummary = (selected: SelectedOptions, instructions?: string, packaging?: 'dine-in' | 'takeaway') => {
+  const pkg = packaging === 'takeaway' ? '🥡 ใส่ถุงกลับบ้าน' : ''
   const opts = Object.values(selected).flat().map((option) => option.label).join(' · ')
   const note = instructions?.trim() ? `📝 ${instructions.trim()}` : ''
-  if (opts && note) return `${opts} | ${note}`
-  return opts || note
+  const parts = [pkg, opts, note].filter(Boolean)
+  return parts.join(' | ')
 }
 export const optionPrice = (selected: SelectedOptions) => Object.values(selected).flat().reduce((sum, option) => sum + (option.price ?? 0), 0)
-export const optionsKey = (selected: SelectedOptions, instructions?: string) => JSON.stringify({ s: selected, i: (instructions || '').trim() })
+export const optionsKey = (selected: SelectedOptions, instructions?: string, packaging?: 'dine-in' | 'takeaway') =>
+  JSON.stringify({ s: selected, i: (instructions || '').trim(), p: packaging || 'dine-in' })
 
 export function hasRequiredOptions(item: MenuItem, selected: SelectedOptions) {
   return !item.options?.groups.some((group) => group.required && !selected[group.id]?.length)
