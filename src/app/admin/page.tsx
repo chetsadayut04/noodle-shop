@@ -70,13 +70,22 @@ type OptionItem = {
   extra_price: number
 }
 
+type PaymentRecord = {
+  id?: string
+  slip_url?: string | null
+  amount?: number | null
+  status?: string | null
+  payment_method?: string | null
+  method?: string | null
+}
+
 type Order = {
   id: string
   table_id: string
   status: string
   total: number
   created_at: string
-  payments?: { slip_url: string | null }[]
+  payments?: PaymentRecord[]
 }
 
 const COLORS = ['#eab308', '#3b82f6', '#a855f7', '#10b981']
@@ -728,19 +737,34 @@ export default function AdminPage() {
     return 'ยอดขายรวมทุกวัน (ทั้งหมด)'
   }
 
+  const isTransferOrder = (o: Order) => {
+    if (o.payments?.some((p) => !!p.slip_url)) return true
+    const payment = o.payments?.[0]
+    if (payment) {
+      if (payment.payment_method === 'promptpay' || payment.method === 'promptpay') return true
+      if (payment.payment_method === 'cash' || payment.method === 'cash') return false
+    }
+    return true
+  }
+
+  const isOrderPaid = (o: Order) => {
+    return (
+      o.status === 'paid' ||
+      o.payments?.some((p) => p.status === 'paid' || p.status === 'submitted' || !!p.slip_url)
+    )
+  }
+
   const selectedTransferRevenue = filteredOrders
-    .filter((o) => o.payments?.some((p) => p.slip_url))
+    .filter((o) => isOrderPaid(o) && isTransferOrder(o))
     .reduce((sum, o) => sum + (o.total || 0), 0)
 
   const selectedCashRevenue = filteredOrders
-    .filter((o) => o.status === 'paid' && !o.payments?.some((p) => p.slip_url))
+    .filter((o) => isOrderPaid(o) && !isTransferOrder(o))
     .reduce((sum, o) => sum + (o.total || 0), 0)
 
   const selectedTotalRevenue = selectedTransferRevenue + selectedCashRevenue
 
-  const selectedOrdersCount = filteredOrders.filter(
-    (o) => o.status === 'paid' || o.payments?.some((p) => p.slip_url)
-  ).length
+  const selectedOrdersCount = filteredOrders.filter((o) => isOrderPaid(o)).length
 
   // Revenue chart data (7 days)
   const chartDataMap: Record<string, number> = {}
@@ -1013,20 +1037,22 @@ export default function AdminPage() {
                     <th className="pb-2">เวลา</th>
                     <th className="pb-2">ยอดเงิน</th>
                     <th className="pb-2">สถานะ</th>
+                    <th className="pb-2">วิธีชำระ</th>
                     <th className="pb-2 text-right">สลิป</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-6 text-center text-xs text-muted-foreground italic">
+                      <td colSpan={6} className="py-6 text-center text-xs text-muted-foreground italic">
                         ไม่มีประวัติคำสั่งซื้อสำหรับวันที่เลือก
                       </td>
                     </tr>
                   ) : (
                     filteredOrders.map((o) => {
                       const slipUrl = o.payments?.[0]?.slip_url
-                      const isPaid = o.status === 'paid' || !!slipUrl
+                      const isPaid = isOrderPaid(o)
+                      const isTransfer = isTransferOrder(o)
                       return (
                         <tr key={o.id} className="hover:bg-secondary/40">
                           <td className="py-2.5 font-semibold text-card-foreground">
@@ -1056,6 +1082,17 @@ export default function AdminPage() {
                                 ? '🍳 กำลังทำ'
                                 : '⏳ รอรับออเดอร์'}
                             </span>
+                          </td>
+                          <td className="py-2.5">
+                            {isTransfer ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/15 px-2 py-0.5 text-[10px] font-bold text-teal-700">
+                                📱 โอนเงิน
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                💵 เงินสด
+                              </span>
+                            )}
                           </td>
                           <td className="py-2.5 text-right">
                             {slipUrl ? (

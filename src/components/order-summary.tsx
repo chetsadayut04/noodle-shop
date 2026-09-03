@@ -113,7 +113,14 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
 
       const supabase = createClient()
       await supabase.from('orders').update({ status: 'paid' }).eq('id', targetOrderId)
-      await supabase.from('payments').update({ status: 'paid' }).eq('order_id', targetOrderId)
+      await supabase
+        .from('payments')
+        .update({
+          status: 'paid',
+          payment_method: 'promptpay',
+          method: 'promptpay',
+        })
+        .eq('order_id', targetOrderId)
 
       setUploadSuccess(true)
       setTimeout(() => {
