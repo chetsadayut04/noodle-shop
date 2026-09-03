@@ -16,6 +16,7 @@ export type MenuItem = {
   price: number
   image: string
   category: string
+  badge?: string
   options?: {
     groups: {
       id: string

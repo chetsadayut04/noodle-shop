@@ -151,29 +151,21 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
             }
           }
 
-          // Filter out deleted items from static list based on Supabase DB
-          const liveIds = new Set(items.map((d) => d.id))
-          const filteredStatic = staticMenuItems
-            .filter((m) => liveIds.has(m.id))
-            .map((m) => ({
-              ...m,
-              options: buildOptions(m.id, m.options),
-            }))
-
-          // Add newly added DB items not in static file
-          const newDbItems: MenuItem[] = items
-            .filter((d) => !staticMenuItems.some((m) => m.id === d.id))
-            .map((d) => ({
+          const dynamicMenuItems: MenuItem[] = items.map((d) => {
+            const staticMatch = staticMenuItems.find((m) => m.id === d.id)
+            return {
               id: d.id,
               name: d.name,
               category: d.category_id as any,
               price: Number(d.price),
-              description: 'เมนูอร่อยจากทางร้าน',
-              image: '/food/ba-mee.png',
-              options: buildOptions(d.id),
-            }))
+              description: d.description || staticMatch?.description || 'เมนูอร่อยจากทางร้าน',
+              image: d.image_url || staticMatch?.image || '/food/nam-tok.png',
+              badge: d.badge || staticMatch?.badge,
+              options: buildOptions(d.id, staticMatch?.options),
+            }
+          })
 
-          setDbMenuItems([...filteredStatic, ...newDbItems])
+          setDbMenuItems(dynamicMenuItems)
         }
       } catch (err) {
         console.error('Fetch menu items & options error:', err)
