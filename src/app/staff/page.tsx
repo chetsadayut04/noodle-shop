@@ -471,7 +471,7 @@ export default function StaffPage() {
       {/* Header */}
       <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-xs">
             <UtensilsCrossed className="h-5 w-5" />
           </div>
           <div>
@@ -481,36 +481,12 @@ export default function StaffPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Store Open/Closed Toggle */}
-          <button
-            type="button"
-            onClick={handleToggleStoreOpen}
-            className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition-all shadow-xs cursor-pointer ${
-              isStoreOpen
-                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/25'
-                : 'bg-destructive/15 border border-destructive/30 text-destructive hover:bg-destructive/25'
-            }`}
-          >
-            <span className={`h-2.5 w-2.5 rounded-full ${isStoreOpen ? 'bg-emerald-500 animate-pulse' : 'bg-destructive'}`} />
-            <span>{isStoreOpen ? '🟢 ร้านเปิด' : '🔴 ร้านปิด'}</span>
-          </button>
-
-          {/* POS Quick Order Button */}
-          <button
-            type="button"
-            onClick={() => setPosModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 transition-transform active:scale-95 cursor-pointer"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>➕ สั่งอาหารหน้าร้าน (POS)</span>
-          </button>
-
           {/* Sound Voice Notification Toggle & Test */}
           <div className="flex items-center gap-1 rounded-full bg-secondary/80 p-0.5 border border-border">
             <button
               type="button"
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
                 soundEnabled
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
@@ -518,12 +494,12 @@ export default function StaffPage() {
               title={soundEnabled ? 'ปิดเสียงแจ้งเตือน' : 'เปิดเสียงแจ้งเตือน'}
             >
               {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-              <span>{soundEnabled ? 'เสียงเตือน: เปิด' : 'เสียงเตือน: ปิด'}</span>
+              <span>{soundEnabled ? 'เสียง: เปิด' : 'เสียง: ปิด'}</span>
             </button>
             <button
               type="button"
               onClick={() => playOrderSound('1')}
-              className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-card hover:text-foreground transition-colors"
+              className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-card hover:text-foreground transition-colors cursor-pointer"
               title="กดทดสอบเสียงพูดแจ้งเตือน"
             >
               <Bell className="h-3.5 w-3.5" />
@@ -535,9 +511,10 @@ export default function StaffPage() {
           <button
             type="button"
             onClick={() => setStockModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary border border-primary/20 hover:bg-primary/20"
+            className="flex items-center gap-1.5 rounded-full bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground border border-border hover:bg-secondary/80 cursor-pointer"
           >
-            <Utensils className="h-3.5 w-3.5" /> เปิด/ปิด สินค้าหมด
+            <Utensils className="h-3.5 w-3.5 text-primary" />
+            <span>สินค้าหมด</span>
             {outOfStockCount > 0 && (
               <span className="rounded-full bg-destructive px-2 py-0.2 text-[10px] font-bold text-destructive-foreground">
                 {outOfStockCount}
@@ -550,26 +527,30 @@ export default function StaffPage() {
             <button
               type="button"
               onClick={() => router.push('/admin')}
-              className="flex items-center gap-1.5 rounded-full bg-secondary px-3.5 py-2 text-xs font-semibold text-secondary-foreground"
+              className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-secondary/80 cursor-pointer"
+              title="ไปหน้า Admin"
             >
-              <ShieldAlert className="h-3.5 w-3.5" /> กลับหน้า Admin
+              <ShieldAlert className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">หน้า Admin</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={fetchOrdersAndMenu}
-            className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground transition-transform active:scale-95"
+            className="flex items-center justify-center rounded-full bg-secondary h-8 w-8 text-secondary-foreground hover:bg-secondary/80 transition-transform active:scale-95 cursor-pointer"
+            title="รีเฟรชข้อมูล"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> รีเฟรช
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
           <button
             type="button"
             onClick={handleLogout}
-            className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/20"
+            className="flex items-center justify-center rounded-full bg-destructive/10 h-8 w-8 text-destructive hover:bg-destructive/20 cursor-pointer"
+            title="ออกจากระบบ"
           >
-            <LogOut className="h-3.5 w-3.5" /> ออกจากระบบ
+            <LogOut className="h-3.5 w-3.5" />
           </button>
         </div>
       </header>
