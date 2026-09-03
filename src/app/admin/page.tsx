@@ -340,16 +340,19 @@ export default function AdminPage() {
     }
   }
 
-  // 1-Click Apply Preset Template
+  // 1-Click Apply Preset Template (Replaces old options cleanly)
   const handleApplyPreset = async (presetType: 'noodle' | 'rice' | 'drink' | 'extras_only') => {
     if (!selectedMenuId) {
       alert('กรุณาเลือกเมนูก่อนใส่แม่แบบ')
       return
     }
-    if (!confirm('ต้องการใส่ชุดตัวเลือกแม่แบบสำหรับเมนูนี้ใช่หรือไม่?')) return
+    if (!confirm('ต้องการเปลี่ยนตัวเลือกของเมนูนี้เป็นชุดแม่แบบที่เลือกใช่หรือไม่? (ระบบจะล้างตัวเลือกเดิมของเมนูนี้ออกก่อน)')) return
 
     try {
       const supabase = createClient()
+
+      // 🛡️ Delete existing groups for this menu first to prevent duplicates!
+      await supabase.from('option_groups').delete().eq('menu_item_id', selectedMenuId)
 
       let groupsToCreate: { name: string; is_required: boolean; options: { name: string; price: number }[] }[] = []
 
@@ -361,37 +364,26 @@ export default function AdminPage() {
             options: [
               { name: 'เส้นเล็ก', price: 0 },
               { name: 'เส้นใหญ่', price: 0 },
-              { name: 'บะหมี่เหลือง', price: 5 },
+              { name: 'บะหมี่เหลือง', price: 0 },
               { name: 'วุ้นเส้น', price: 0 },
-              { name: 'มาม่า', price: 10 },
+              { name: 'เส้นหมี่ขาว', price: 0 },
+              { name: 'มาม่า', price: 0 },
+              { name: 'เกาเหลา (ไม่เอาเส้น)', price: 0 },
             ],
           },
           {
-            name: 'เลือกน้ำซุป',
+            name: 'รูปแบบ',
             is_required: true,
             options: [
-              { name: 'น้ำตก', price: 0 },
-              { name: 'ต้มยำ', price: 0 },
-              { name: 'น้ำใส', price: 0 },
+              { name: 'น้ำ', price: 0 },
               { name: 'แห้ง', price: 0 },
-            ],
-          },
-          {
-            name: 'เลือกเนื้อสัตว์',
-            is_required: true,
-            options: [
-              { name: 'หมูสด/หมูนุ่ม', price: 0 },
-              { name: 'หมูตุ๋น', price: 10 },
-              { name: 'เนื้อวัว', price: 15 },
-              { name: 'ลูกชิ้นปลา', price: 0 },
-              { name: 'รวมมิตรจัดเต็ม', price: 20 },
             ],
           },
           {
             name: 'เลือกผัก',
             is_required: false,
             options: [
-              { name: 'ใส่ผักทุกอย่าง', price: 0 },
+              { name: 'ใส่ผักปกติ', price: 0 },
               { name: 'ถั่วงอก', price: 0 },
               { name: 'ผักบุ้ง', price: 0 },
               { name: 'ไม่ใส่ผัก', price: 0 },
@@ -401,10 +393,10 @@ export default function AdminPage() {
             name: 'เพิ่มของได้ตามใจ',
             is_required: false,
             options: [
-              { name: 'ไข่ต้ม', price: 10 },
-              { name: 'เพิ่มเส้น', price: 10 },
-              { name: 'แคบหมู', price: 15 },
-              { name: 'เกี๊ยวทอดกรอบ', price: 10 },
+              { name: 'ไข่ต้ม', price: 7 },
+              { name: 'ลูกชิ้นหมู (5 ลูก)', price: 20 },
+              { name: 'ลูกชิ้นเนื้อ (5 ลูก)', price: 20 },
+              { name: 'ข้าวเปล่า', price: 5 },
             ],
           },
         ]
@@ -415,31 +407,39 @@ export default function AdminPage() {
             is_required: true,
             options: [
               { name: 'ธรรมดา', price: 0 },
-              { name: 'พิเศษ', price: 10 },
+              { name: 'พิเศษ (+10฿)', price: 10 },
             ],
           },
           {
-            name: 'ประเภทเนื้อ',
+            name: 'เนื้อไก่',
             is_required: false,
             options: [
-              { name: 'ไก่ต้ม', price: 0 },
-              { name: 'ไก่ทอด', price: 0 },
-              { name: 'ไก่ผสม (ต้ม+ทอด)', price: 15 },
+              { name: 'เนื้อผสมหนัง (ปกติ)', price: 0 },
+              { name: 'ไม่เอาหนัง (เนื้อล้วน)', price: 0 },
+              { name: 'เน้นหนัง', price: 0 },
             ],
           },
           {
-            name: 'เพิ่มของได้ตามใจ',
+            name: 'เครื่องเคียงเพิ่ม',
             is_required: false,
             options: [
-              { name: 'เพิ่มข้าวมัน', price: 10 },
-              { name: 'ไข่ต้มยางมะตูม', price: 10 },
-              { name: 'ตับไก่', price: 10 },
-              { name: 'แตงกวาเพิ่ม', price: 0 },
+              { name: 'เพิ่มตับไก่ (+10฿)', price: 10 },
+              { name: 'เพิ่มข้าวมัน (+10฿)', price: 10 },
+              { name: 'ไข่ต้มยางมะตูม (+7฿)', price: 7 },
+              { name: 'น้ำซุปมะนาวดอง (+0฿)', price: 0 },
             ],
           },
         ]
       } else if (presetType === 'drink') {
         groupsToCreate = [
+          {
+            name: 'ขนาดแก้ว',
+            is_required: true,
+            options: [
+              { name: 'แก้วเล็ก (25฿)', price: 0 },
+              { name: 'แก้วใหญ่ (35฿)', price: 10 },
+            ],
+          },
           {
             name: 'ระดับความหวาน',
             is_required: true,
@@ -451,20 +451,11 @@ export default function AdminPage() {
           },
           {
             name: 'ปริมาณน้ำแข็ง',
-            is_required: true,
+            is_required: false,
             options: [
               { name: 'น้ำแข็งปกติ', price: 0 },
               { name: 'น้ำแข็งน้อย', price: 0 },
               { name: 'ไม่ใส่น้ำแข็ง', price: 0 },
-            ],
-          },
-          {
-            name: 'ท็อปปิ้งเพิ่ม',
-            is_required: false,
-            options: [
-              { name: 'ไข่มุก', price: 10 },
-              { name: 'ว่านหางจระเข้', price: 10 },
-              { name: 'เฉาก๊วย', price: 10 },
             ],
           },
         ]
@@ -474,10 +465,10 @@ export default function AdminPage() {
             name: 'เพิ่มของได้ตามใจ',
             is_required: false,
             options: [
-              { name: 'ไข่ต้ม', price: 10 },
-              { name: 'เพิ่มเส้น', price: 10 },
-              { name: 'แคบหมู', price: 15 },
-              { name: 'เกี๊ยวกรอบ', price: 10 },
+              { name: 'ไข่ต้ม', price: 7 },
+              { name: 'ลูกชิ้นหมู (5 ลูก)', price: 20 },
+              { name: 'ลูกชิ้นเนื้อ (5 ลูก)', price: 20 },
+              { name: 'ข้าวเปล่า', price: 5 },
             ],
           },
         ]
@@ -515,10 +506,10 @@ export default function AdminPage() {
     }
   }
 
-  // Copy options from another menu
+  // Copy options from another menu (Replaces cleanly)
   const handleCopyFromMenu = async (sourceMenuId: string) => {
     if (!sourceMenuId || !selectedMenuId || sourceMenuId === selectedMenuId) return
-    if (!confirm('ต้องการคัดลอกตัวเลือกทั้งหมดจากเมนูที่เลือกมาใส่เมนูนี้ใช่หรือไม่?')) return
+    if (!confirm('ต้องการคัดลอกตัวเลือกทั้งหมดจากเมนูที่เลือกมาแทนที่เมนูนี้ใช่หรือไม่?')) return
 
     try {
       const supabase = createClient()
@@ -527,6 +518,9 @@ export default function AdminPage() {
         alert('เมนูต้นทางไม่มีตัวเลือกให้คัดลอก')
         return
       }
+
+      // 🛡️ Delete existing groups for this menu first!
+      await supabase.from('option_groups').delete().eq('menu_item_id', selectedMenuId)
 
       for (const grp of sourceGroups) {
         const { data: newGrp, error: gErr } = await supabase
@@ -557,6 +551,21 @@ export default function AdminPage() {
     } catch (err: any) {
       console.error('Copy options error:', err)
       alert(err.message || 'เกิดข้อผิดพลาดในการคัดลอกตัวเลือก')
+    }
+  }
+
+  // Clear all options for selected menu
+  const handleClearAllOptionsForMenu = async () => {
+    if (!selectedMenuId) return
+    if (!confirm('ต้องการล้างตัวเลือกทั้งหมดของเมนูนี้ออกทั้งหมดใช่หรือไม่?')) return
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('option_groups').delete().eq('menu_item_id', selectedMenuId)
+      if (error) throw error
+      fetchData()
+    } catch (err: any) {
+      console.error('Clear options error:', err)
+      alert(err.message || 'เกิดข้อผิดพลาดในการล้างตัวเลือก')
     }
   }
 
@@ -1121,7 +1130,7 @@ export default function AdminPage() {
           </div>
 
           {/* Menu Selector Dropdown */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <label className="text-xs font-semibold text-muted-foreground whitespace-nowrap">เลือกเมนู:</label>
             <select
               value={selectedMenuId}
@@ -1134,6 +1143,16 @@ export default function AdminPage() {
                 </option>
               ))}
             </select>
+            {currentMenuGroups.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAllOptionsForMenu}
+                className="inline-flex items-center gap-1 rounded-2xl bg-destructive/10 border border-destructive/20 px-3 py-1.5 text-xs font-bold text-destructive hover:bg-destructive/20 transition-colors cursor-pointer"
+                title="ล้างตัวเลือกทั้งหมดของเมนูนี้ออก"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> ล้างตัวเลือกทั้งหมด
+              </button>
+            )}
           </div>
         </div>
 
