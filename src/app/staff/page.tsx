@@ -557,11 +557,24 @@ export default function StaffPage() {
     router.refresh()
   }
 
+  // Helper to check if date is today (Bangkok local time)
+  const isToday = (dateStr: string) => {
+    const orderDate = new Date(dateStr)
+    const now = new Date()
+    return (
+      orderDate.getDate() === now.getDate() &&
+      orderDate.getMonth() === now.getMonth() &&
+      orderDate.getFullYear() === now.getFullYear()
+    )
+  }
+
   // 1. Orders to Do: pending + preparing
   const todoOrders = orders.filter((o) => o.status === 'pending' || o.status === 'preparing')
 
-  // 2. Completed Orders: served + paid
-  const completedOrders = orders.filter((o) => o.status === 'served' || o.status === 'paid')
+  // 2. Completed Orders: served + paid (Resets daily - Today only)
+  const completedOrders = orders.filter(
+    (o) => (o.status === 'served' || o.status === 'paid') && isToday(o.created_at)
+  )
 
   const outOfStockCount = menuItems.filter((i) => !i.is_available).length
 
@@ -841,7 +854,7 @@ export default function StaffPage() {
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <span className="flex h-3 w-3 rounded-full bg-emerald-500" />
-              <h2 className="font-display text-xl font-bold text-card-foreground">✅ ทำเสร็จแล้ว / ชำระแล้ว</h2>
+              <h2 className="font-display text-xl font-bold text-card-foreground">✅ ทำเสร็จแล้ว / ชำระแล้ว (วันนี้)</h2>
             </div>
             <span className="rounded-full bg-emerald-500/15 px-3 py-1 font-display text-xs font-bold text-emerald-700">
               {completedOrders.length} รายการ
@@ -852,7 +865,7 @@ export default function StaffPage() {
             {completedOrders.length === 0 ? (
               <div className="py-16 text-center text-muted-foreground">
                 <CheckCircle2 className="mx-auto h-10 w-10 text-muted-foreground/40" />
-                <p className="mt-2 text-xs">ยังไม่มีออเดอร์ที่เสร็จแล้ว</p>
+                <p className="mt-2 text-xs">ยังไม่มีออเดอร์ที่เสร็จแล้วของวันนี้</p>
               </div>
             ) : (
               completedOrders.map((order) => {
