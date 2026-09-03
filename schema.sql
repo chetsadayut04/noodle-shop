@@ -201,16 +201,24 @@ INSERT INTO menu_items (id, category_id, name, description, price, image_url, ba
 ('nam-daeng-manao', 'drinks', 'น้ำแดงมะนาว', 'น้ำหวานเฮลบลูบอยผสมมะนาวแท้ เปรี้ยวหวานซาบซ่า', 25, '/food/nam-manao.png', NULL, 31),
 ('cha-khiao-manao', 'drinks', 'ชาเขียวมะนาว', 'ชาเขียวหอมสดชื่นผสมมะนาวแท้ ดับกระหายสดชื่น', 25, '/food/nam-manao.png', NULL, 32);
 
--- 5.4 Storage Bucket & Policies สำหรับสลิปโอนเงิน
+-- 5.4 Storage Buckets & Policies สำหรับสลิปโอนเงินและรูปภาพเมนูอาหาร
 INSERT INTO storage.buckets (id, name, public) 
-VALUES ('slips', 'slips', true)
+VALUES ('slips', 'slips', true), ('menu-images', 'menu-images', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
 DROP POLICY IF EXISTS "Allow public uploads to slips" ON storage.objects;
 DROP POLICY IF EXISTS "Allow public reads on slips" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public uploads to menu-images" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public reads on menu-images" ON storage.objects;
 
 CREATE POLICY "Allow public uploads to slips" ON storage.objects 
 FOR INSERT WITH CHECK (bucket_id = 'slips');
 
 CREATE POLICY "Allow public reads on slips" ON storage.objects 
 FOR SELECT USING (bucket_id = 'slips');
+
+CREATE POLICY "Allow public uploads to menu-images" ON storage.objects 
+FOR INSERT WITH CHECK (bucket_id = 'menu-images');
+
+CREATE POLICY "Allow public reads on menu-images" ON storage.objects 
+FOR SELECT USING (bucket_id = 'menu-images');

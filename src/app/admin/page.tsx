@@ -23,6 +23,8 @@ import {
   Banknote,
   Smartphone,
   Calendar,
+  Camera,
+  UploadCloud,
 } from 'lucide-react'
 import {
   BarChart,
@@ -47,6 +49,8 @@ type MenuItem = {
   category_id: string
   name: string
   price: number
+  image_url?: string | null
+  badge?: string | null
   is_available: boolean
 }
 
@@ -95,6 +99,9 @@ export default function AdminPage() {
   const [newItemName, setNewItemName] = useState('')
   const [newItemCategory, setNewItemCategory] = useState('noodles')
   const [newItemPrice, setNewItemPrice] = useState('')
+  const [newItemImageFile, setNewItemImageFile] = useState<File | null>(null)
+  const [newItemImagePreview, setNewItemImagePreview] = useState<string>('')
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   // New Option Group Form
   const [newGroupName, setNewGroupName] = useState('')
@@ -198,13 +205,46 @@ export default function AdminPage() {
     if (!newItemName || !newItemPrice) return
     const id = newItemId.trim() || `item-${Date.now()}`
     const actualCategory = newItemCategory === 'all' ? 'noodles' : newItemCategory
+    
+    setUploadingImage(true)
     try {
       const supabase = createClient()
+
+      let uploadedImageUrl: string | null = null
+      if (newItemImageFile) {
+        const ext = newItemImageFile.name.split('.').pop() || 'jpg'
+        const fileName = `menu-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+
+        // Try uploading to menu-images bucket first
+        let uploadRes = await supabase.storage.from('menu-images').upload(fileName, newItemImageFile)
+        let bucketName = 'menu-images'
+
+        // Fallback to slips bucket if menu-images bucket is not yet created
+        if (uploadRes.error) {
+          uploadRes = await supabase.storage.from('slips').upload(`menu-${fileName}`, newItemImageFile)
+          bucketName = 'slips'
+        }
+
+        if (!uploadRes.error && uploadRes.data) {
+          const { data } = supabase.storage.from(bucketName).getPublicUrl(uploadRes.data.path)
+          uploadedImageUrl = data.publicUrl
+        }
+      }
+
+      // Default category fallback image if no file was uploaded
+      if (!uploadedImageUrl) {
+        if (actualCategory === 'noodles') uploadedImageUrl = '/food/nam-tok.png'
+        else if (actualCategory === 'khaomangai') uploadedImageUrl = '/food/khao-man-gai.png'
+        else if (actualCategory === 'drinks') uploadedImageUrl = '/food/cha-thai.png'
+        else uploadedImageUrl = '/food/nam-tok.png'
+      }
+
       const { error } = await supabase.from('menu_items').insert({
         id,
         name: newItemName,
         category_id: actualCategory,
         price: parseFloat(newItemPrice),
+        image_url: uploadedImageUrl,
         is_available: true,
       })
 
@@ -213,10 +253,14 @@ export default function AdminPage() {
       setNewItemId('')
       setNewItemName('')
       setNewItemPrice('')
+      setNewItemImageFile(null)
+      setNewItemImagePreview('')
       fetchData()
     } catch (err: any) {
       console.error('Add menu item error:', err)
       alert(err.message || 'ไม่สามารถเพิ่มเมนูอาหารได้')
+    } finally {
+      setUploadingImage(false)
     }
   }
 
@@ -993,11 +1037,56 @@ export default function AdminPage() {
                 className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
               />
             </div>
+
+            {/* 📷 Image Upload from Device with Instant Preview */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+                <Camera className="h-3.5 w-3.5 text-primary" /> รูปภาพเมนูอาหาร (เลือกรูปจากมือถือหรือคอม):
+              </label>
+              <div className="flex items-center gap-3">
+                <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-2.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors">
+                  <UploadCloud className="h-4 w-4" />
+                  <span>{newItemImageFile ? `รูปที่เลือก: ${newItemImageFile.name}` : '📷 คลิกเพื่อเลือกรูปภาพจากเครื่อง'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        setNewItemImageFile(file)
+                        setNewItemImagePreview(URL.createObjectURL(file))
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+
+                {newItemImagePreview && (
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border shadow-xs">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={newItemImagePreview} alt="Preview" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewItemImageFile(null)
+                        setNewItemImagePreview('')
+                      }}
+                      className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/70 text-white hover:bg-red-600 cursor-pointer"
+                      title="ลบรูปที่เลือก"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-1 rounded-full bg-primary py-2.5 font-display text-xs font-bold text-primary-foreground shadow-xs cursor-pointer hover:bg-primary/90 transition-colors"
+              disabled={uploadingImage}
+              className="flex w-full items-center justify-center gap-1 rounded-full bg-primary py-2.5 font-display text-xs font-bold text-primary-foreground shadow-xs cursor-pointer hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              <Plus className="h-4 w-4" /> เพิ่มสินค้าลงในเมนู
+              <Plus className="h-4 w-4" /> {uploadingImage ? '⏳ กำลังอัปโหลดรูปภาพและบันทึก...' : 'เพิ่มสินค้าลงในเมนู'}
             </button>
           </form>
 
@@ -1025,13 +1114,21 @@ export default function AdminPage() {
             ) : (
               filteredMenuItems.map((item) => (
                 <li key={item.id} className="flex items-center justify-between py-2.5 text-xs">
-                  <div>
-                    <p className="font-semibold text-card-foreground">{item.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      หมวด: {item.category_id === 'noodles' ? 'ก๋วยเตี๋ยว' : item.category_id === 'khaomangai' ? 'ข้าวมันไก่' : 'เครื่องดื่ม'} · {item.price} บาท
-                    </p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.image_url || (item.category_id === 'noodles' ? '/food/nam-tok.png' : item.category_id === 'khaomangai' ? '/food/khao-man-gai.png' : '/food/cha-thai.png')}
+                      alt={item.name}
+                      className="h-10 w-10 shrink-0 rounded-xl object-cover border border-border bg-secondary"
+                    />
+                    <div className="truncate">
+                      <p className="font-semibold text-card-foreground truncate">{item.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        หมวด: {item.category_id === 'noodles' ? 'ก๋วยเตี๋ยว' : item.category_id === 'khaomangai' ? 'ข้าวมันไก่' : 'เครื่องดื่ม'} · {item.price} บาท
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={() => toggleMenuAvailable(item.id, item.is_available)}
