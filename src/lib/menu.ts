@@ -16,6 +16,7 @@ export type MenuItem = {
   price: number
   image: string
   category: string
+  badge?: string
   options?: {
     groups: {
       id: string
@@ -53,14 +54,14 @@ const drinkOptions = {
 }
 
 export const menuItems: MenuItem[] = [
-  { id: 'nam-tok', name: 'ก๋วยเตี๋ยวหมูน้ำตก', description: 'น้ำซุปเข้มข้น หมูนุ่ม โรยผักสด', price: 55, image: '/food/nam-tok.png', category: 'guaytiew', options: noodleOptions },
-  { id: 'tom-yum', name: 'ก๋วยเตี๋ยวต้มยำ', description: 'รสจัดจ้าน เปรี้ยวเผ็ด ใส่กุ้งและถั่วป่น', price: 60, image: '/food/tom-yum.png', category: 'guaytiew', options: noodleOptions },
+  { id: 'nam-tok', name: 'ก๋วยเตี๋ยวหมูน้ำตก', description: 'น้ำซุปเข้มข้น หมูนุ่ม โรยผักสด', price: 55, image: '/food/nam-tok.png', category: 'guaytiew', badge: '🔥 เมนูแนะนำ', options: noodleOptions },
+  { id: 'tom-yum', name: 'ก๋วยเตี๋ยวต้มยำ', description: 'รสจัดจ้าน เปรี้ยวเผ็ด ใส่กุ้งและถั่วป่น', price: 60, image: '/food/tom-yum.png', category: 'guaytiew', badge: '⭐ ขายดี', options: noodleOptions },
   { id: 'yen-ta-fo', name: 'เย็นตาโฟ', description: 'น้ำสีชมพู ลูกชิ้นปลา ปลาหมึก ผักบุ้ง', price: 60, image: '/food/yen-ta-fo.png', category: 'guaytiew', options: noodleOptions },
   { id: 'ba-mee', name: 'บะหมี่เกี๊ยวหมูแดง', description: 'บะหมี่เหลืองแห้ง หมูแดง เกี๊ยวกรอบ', price: 55, image: '/food/ba-mee.png', category: 'guaytiew', options: noodleOptions },
-  { id: 'kmg-tom', name: 'ข้าวมันไก่ต้ม', description: 'ไก่ต้มนุ่ม ข้าวมันหอม น้ำจิ้มขิงรสเด็ด', price: 50, image: '/food/khao-man-gai.png', category: 'khaomangai' },
+  { id: 'kmg-tom', name: 'ข้าวมันไก่ต้ม', description: 'ไก่ต้มนุ่ม ข้าวมันหอม น้ำจิ้มขิงรสเด็ด', price: 50, image: '/food/khao-man-gai.png', category: 'khaomangai', badge: '👑 เมนูเด็ด' },
   { id: 'kmg-tod', name: 'ข้าวมันไก่ทอด', description: 'ไก่ทอดกรอบนอกนุ่มใน ข้าวมันหอม', price: 55, image: '/food/khao-man-gai-tod.png', category: 'khaomangai' },
-  { id: 'kmg-ruam', name: 'ข้าวมันไก่รวม', description: 'ไก่ต้มและไก่ทอดจัดเต็ม อิ่มคุ้ม', price: 65, image: '/food/khao-man-gai-ruam.png', category: 'khaomangai' },
-  { id: 'cha-thai', name: 'ชาไทยเย็น', description: 'ชานมเข้มข้น หวานมัน กลมกล่อม', price: 30, image: '/food/cha-thai.png', category: 'drinks', options: drinkOptions },
+  { id: 'kmg-ruam', name: 'ข้าวมันไก่รวม', description: 'ไก่ต้มและไก่ทอดจัดเต็ม อิ่มคุ้ม', price: 65, image: '/food/khao-man-gai-ruam.png', category: 'khaomangai', badge: '⭐ ขายดี' },
+  { id: 'cha-thai', name: 'ชาไทยเย็น', description: 'ชานมเข้มข้น หวานมัน กลมกล่อม', price: 30, image: '/food/cha-thai.png', category: 'drinks', badge: '🔥 ขายดี', options: drinkOptions },
   { id: 'nam-manao', name: 'น้ำมะนาว', description: 'สดชื่น เปรี้ยวหวานกำลังดี', price: 25, image: '/food/nam-manao.png', category: 'drinks', options: drinkOptions },
   { id: 'kek-huay', name: 'เก๊กฮวยเย็น', description: 'ชาดอกเก๊กฮวย หอมชื่นใจ ดับร้อน', price: 25, image: '/food/kek-huay.png', category: 'drinks', options: drinkOptions },
 ]

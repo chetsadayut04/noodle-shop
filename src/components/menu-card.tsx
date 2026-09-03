@@ -28,27 +28,34 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
   }
 
   return (
-    <article className={`group flex gap-4 rounded-2xl border border-border bg-card p-3 transition-shadow hover:shadow-md sm:flex-col sm:gap-0 sm:p-0 ${!isAvailable ? 'opacity-75' : ''}`}>
-      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl sm:h-40 sm:w-full sm:rounded-b-none">
+    <article className={`group flex gap-4 rounded-3xl border border-border/80 bg-card p-3.5 transition-all duration-300 hover:shadow-lg hover:border-primary/30 sm:flex-col sm:gap-0 sm:p-0 overflow-hidden ${!isAvailable ? 'opacity-75' : ''}`}>
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl sm:h-44 sm:w-full sm:rounded-none">
         <img
           src={item.image}
           alt={item.name}
-          className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 ${!isAvailable ? 'grayscale opacity-60' : ''}`}
+          className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 ${!isAvailable ? 'grayscale opacity-60' : ''}`}
         />
+        {item.badge && isAvailable && (
+          <span className="absolute top-2.5 left-2.5 rounded-full bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-md shadow-amber-500/25">
+            {item.badge}
+          </span>
+        )}
         {!isAvailable && (
-          <span className="absolute top-2 right-2 rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground shadow-xs">
+          <span className="absolute top-2.5 right-2.5 rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground shadow-xs">
             สินค้าหมด
           </span>
         )}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col sm:p-4">
-        <h3 className="font-display text-lg font-semibold leading-tight text-card-foreground text-balance">{item.name}</h3>
-        <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{item.description}</p>
+      <div className="flex min-w-0 flex-1 flex-col p-0.5 sm:p-4">
+        <h3 className="font-display text-lg font-bold leading-tight text-card-foreground group-hover:text-primary transition-colors text-balance">
+          {item.name}
+        </h3>
+        <p className="mt-1 line-clamp-2 text-xs sm:text-sm leading-relaxed text-muted-foreground">{item.description}</p>
         
         <div className="mt-auto flex items-center justify-between gap-2 pt-3">
-          <span className="font-display text-lg font-bold text-primary">
-            {item.price}<span className="ml-0.5 text-sm font-medium text-muted-foreground">บาท</span>
+          <span className="font-display text-lg sm:text-xl font-bold text-primary">
+            {item.price}<span className="ml-0.5 text-xs sm:text-sm font-medium text-muted-foreground">บาท</span>
           </span>
 
           {!isAvailable ? (
@@ -59,29 +66,29 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
             <button
               type="button"
               onClick={() => (item.options ? setCustomizing(true) : add())}
-              className="flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
+              className="flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-xs sm:text-sm font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 active:scale-95"
               aria-label={`เพิ่ม ${item.name} ลงตะกร้า`}
             >
               <Plus className="h-4 w-4" />เพิ่ม
             </button>
           ) : (
-            <div className="flex items-center gap-3 rounded-full bg-secondary p-1">
+            <div className="flex items-center gap-2.5 rounded-full bg-secondary/80 border border-border/60 p-1 shadow-xs">
               <button
                 type="button"
                 onClick={() => onRemove(item)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-secondary-foreground"
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-card text-secondary-foreground shadow-xs transition-colors hover:bg-card/80"
                 aria-label={`ลด ${item.name}`}
               >
-                <Minus className="h-4 w-4" />
+                <Minus className="h-3.5 w-3.5" />
               </button>
-              <span className="min-w-5 text-center font-display font-bold text-secondary-foreground">{quantity}</span>
+              <span className="min-w-4 text-center font-display text-sm font-bold text-secondary-foreground">{quantity}</span>
               <button
                 type="button"
                 onClick={() => (item.options ? setCustomizing(true) : add())}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
                 aria-label={`เพิ่ม ${item.name}`}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
           )}

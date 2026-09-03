@@ -264,13 +264,19 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
       <header className="flex items-start justify-between gap-4 px-5 pb-4 pt-8">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-display text-xs font-semibold uppercase tracking-widest text-accent-foreground">ร้านแม่แต๋</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-600/25 bg-gradient-to-r from-amber-500/15 to-orange-500/10 px-3 py-0.5 text-xs font-bold text-amber-900 shadow-xs">
+              🍜 ร้านแม่แต๋
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary shadow-xs">
               <UtensilsCrossed className="h-3 w-3" /> โต๊ะ {tableId}
             </span>
           </div>
-          <h1 className="mt-1 font-display text-3xl font-bold text-foreground text-balance">ก๋วยเตี๋ยว &amp; ข้าว</h1>
-          <p className="mt-2 text-pretty text-muted-foreground">รสชาติต้นตำรับ เส้นเหนียวนุ่ม น้ำซุปเข้มข้น พร้อมเสิร์ฟความอร่อยถึงโต๊ะคุณ</p>
+          <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-foreground text-balance">
+            ก๋วยเตี๋ยว &amp; ข้าว
+          </h1>
+          <p className="mt-1.5 text-xs sm:text-sm text-pretty text-muted-foreground leading-relaxed">
+            รสชาติต้นตำรับ เส้นเหนียวนุ่ม น้ำซุปหอมเข้มข้น พร้อมเสิร์ฟความอร่อยถึงโต๊ะคุณ
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -279,14 +285,14 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
               {userRole === 'admin' && (
                 <a
                   href="/admin"
-                  className="inline-flex items-center gap-1 rounded-2xl bg-primary/10 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/20"
+                  className="inline-flex items-center gap-1 rounded-2xl bg-primary/10 border border-primary/20 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
                 >
                   <Shield className="h-3.5 w-3.5" /> Admin
                 </a>
               )}
               <a
                 href="/staff"
-                className="inline-flex items-center gap-1 rounded-2xl bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground hover:bg-secondary/80"
+                className="inline-flex items-center gap-1 rounded-2xl bg-secondary border border-border px-3 py-2 text-xs font-bold text-secondary-foreground hover:bg-secondary/80 transition-colors"
               >
                 <UserCheck className="h-3.5 w-3.5" /> Staff
               </a>
@@ -297,27 +303,34 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
             type="button"
             onClick={() => setSummaryOpen(true)}
             aria-label="ดูสรุปรายการอาหารและค่าใช้จ่าย"
-            className="mt-0 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card text-primary shadow-sm ring-1 ring-border transition-transform active:scale-95"
+            className="mt-0 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card text-primary shadow-sm border border-border hover:border-primary/40 transition-all active:scale-95"
           >
             <Receipt className="h-5 w-5" />
           </button>
         </div>
       </header>
 
-      <nav aria-label="หมวดหมู่เมนู" className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
+      <nav aria-label="หมวดหมู่เมนู" className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-md">
         <ul className="flex gap-2 overflow-x-auto px-5 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {categories.map((cat) => (
-            <li key={cat.id}>
-              <button
-                type="button"
-                onClick={() => setActiveCategory(cat.id)}
-                aria-pressed={cat.id === activeCategory}
-                className={`whitespace-nowrap rounded-full px-5 py-2 font-display text-base font-semibold ${cat.id === activeCategory ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
-              >
-                {cat.label}
-              </button>
-            </li>
-          ))}
+          {categories.map((cat) => {
+            const isActive = cat.id === activeCategory
+            return (
+              <li key={cat.id}>
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory(cat.id)}
+                  aria-pressed={isActive}
+                  className={`whitespace-nowrap rounded-full px-5 py-2 font-display text-sm sm:text-base font-semibold transition-all duration-200 ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]'
+                      : 'bg-secondary/70 text-secondary-foreground border border-border/60 hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              </li>
+            )
+          })}
         </ul>
       </nav>
 
