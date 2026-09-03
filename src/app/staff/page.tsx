@@ -212,6 +212,13 @@ export default function StaffPage() {
 
       if (error) throw error
 
+      if (nextStatus === 'paid') {
+        await supabase
+          .from('payments')
+          .update({ status: 'paid' })
+          .eq('order_id', orderId)
+      }
+
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
       )
@@ -416,24 +423,35 @@ export default function StaffPage() {
                       <span className="font-display text-base font-bold text-primary">{order.total} บาท</span>
                     </div>
 
-                    {/* Status Action Button */}
-                    {isPending ? (
+                    {/* Status Action Buttons */}
+                    <div className="mt-3 flex gap-2">
+                      {isPending ? (
+                        <button
+                          type="button"
+                          onClick={() => updateOrderStatus(order.id, 'preparing')}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 font-display text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
+                        >
+                          เริ่มทำอาหาร →
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => updateOrderStatus(order.id, 'served')}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 font-display text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
+                        >
+                          <Check className="h-4 w-4" /> ส่งมอบแล้ว →
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() => updateOrderStatus(order.id, 'preparing')}
-                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 font-display text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
+                        onClick={() => updateOrderStatus(order.id, 'paid')}
+                        className="flex items-center justify-center gap-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-2.5 font-display text-xs font-bold text-emerald-800 hover:bg-emerald-500/25 transition-colors active:scale-95"
+                        title="ปิดบิลและยืนยันรับเงินทันที"
                       >
-                        เริ่มทำอาหาร →
+                        <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>ชำระแล้ว</span>
                       </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => updateOrderStatus(order.id, 'served')}
-                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 font-display text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
-                      >
-                        <Check className="h-4 w-4" /> ทำเสร็จแล้ว (ส่งมอบ) →
-                      </button>
-                    )}
+                    </div>
                   </div>
                 )
               })

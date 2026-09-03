@@ -30,11 +30,23 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
   const [availabilityMap, setAvailabilityMap] = useState<Record<string, boolean>>({})
   const [dbMenuItems, setDbMenuItems] = useState<MenuItem[]>(staticMenuItems)
 
-  // Real-time listener: When staff marks order as PAID, automatically reset customer's bill & cart
+  const resetBill = (showCelebration = true) => {
+    setCart({})
+    setOrderedHistory([])
+    setLastOrderId(null)
+    setSummaryOpen(false)
+    setOrderSuccessOpen(false)
+    if (showCelebration) {
+      setBillPaidSuccessOpen(true)
+    }
+  }
+
+  // 1. Real-time listener: When staff marks order as PAID, automatically reset customer's bill & cart
   useEffect(() => {
     const supabase = createClient()
+    const normTable = String(tableId || '').trim().toUpperCase().replace(/^T/, '')
     const channel = supabase
-      .channel(`realtime-customer-table-${tableId}`)
+      .channel(`realtime-customer-table-${tableId}-${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -44,21 +56,11 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
         },
         (payload) => {
           const updated = payload.new as any
-          if (
-            updated &&
-            (updated.table_id === tableId || (lastOrderId && updated.id === lastOrderId))
-          ) {
-            if (updated.status === 'paid') {
-              // 1. Reset all local cart & history states
-              setCart({})
-              setOrderedHistory([])
-              setLastOrderId(null)
-              // 2. Close any open modals
-              setSummaryOpen(false)
-              setOrderSuccessOpen(false)
-              // 3. Open Bill Paid celebration modal
-              setBillPaidSuccessOpen(true)
-            }
+          if (!updated) return
+          const updatedTable = String(updated.table_id || '').trim().toUpperCase().replace(/^T/, '')
+          const isOurTable = updatedTable === normTable || updated.table_id === tableId || (lastOrderId && updated.id === lastOrderId)
+          if (isOurTable && updated.status === 'paid') {
+            resetBill(true)
           }
         }
       )
@@ -68,6 +70,43 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
       supabase.removeChannel(channel)
     }
   }, [tableId, lastOrderId])
+
+  // 2. Polling Fallback (Every 3 seconds): Check if active order was marked 'paid'
+  useEffect(() => {
+    if (!lastOrderId && orderedHistory.length === 0) return
+
+    const checkPaidStatus = async () => {
+      try {
+        const supabase = createClient()
+        if (lastOrderId) {
+          const { data } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('id', lastOrderId)
+            .single()
+          if (data && data.status === 'paid') {
+            resetBill(true)
+          }
+        } else if (orderedHistory.length > 0) {
+          const { data } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('table_id', tableId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single()
+          if (data && data.status === 'paid') {
+            resetBill(true)
+          }
+        }
+      } catch {
+        // ignore background poll errors
+      }
+    }
+
+    const timer = setInterval(checkPaidStatus, 3000)
+    return () => clearInterval(timer)
+  }, [lastOrderId, orderedHistory.length, tableId])
 
   useEffect(() => {
     const supabase = createClient()
