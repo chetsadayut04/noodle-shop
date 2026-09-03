@@ -7,7 +7,8 @@ import { FloatingCart } from '@/components/floating-cart'
 import { OrderSummary } from '@/components/order-summary'
 import { createClient } from '@/utils/supabase/client'
 import { createOrderOnly } from '@/lib/payment'
-import { Receipt, UtensilsCrossed, Shield, UserCheck, CheckCircle2, Loader2 } from 'lucide-react'
+import { getStoreSettings } from '@/lib/store-settings'
+import { Receipt, UtensilsCrossed, Shield, UserCheck, CheckCircle2, Loader2, Moon, AlertCircle } from 'lucide-react'
 
 type CartEntry = { item: MenuItem; selected: SelectedOptions; instructions?: string; packaging?: 'dine-in' | 'takeaway'; quantity: number }
 
@@ -29,6 +30,8 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [availabilityMap, setAvailabilityMap] = useState<Record<string, boolean>>({})
   const [dbMenuItems, setDbMenuItems] = useState<MenuItem[]>(staticMenuItems)
+  const [isStoreOpen, setIsStoreOpen] = useState(true)
+  const [closedReason, setClosedReason] = useState('ขณะนี้ร้านปิดรับออเดอร์ชั่วคราว')
 
   const resetBill = (showCelebration = true) => {
     setCart({})
@@ -211,6 +214,31 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
     }
 
     fetchMenuItemsAndOptions()
+
+    // 🏬 Fetch Store Open/Closed Settings and listen for realtime updates
+    getStoreSettings().then((settings) => {
+      setIsStoreOpen(settings.is_open)
+      if (settings.closed_reason) setClosedReason(settings.closed_reason)
+    })
+
+    const storeChannel = supabase
+      .channel(`realtime-store-settings-${Date.now()}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'store_settings' },
+        (payload) => {
+          const updated = payload.new as any
+          if (updated && typeof updated.is_open === 'boolean') {
+            setIsStoreOpen(updated.is_open)
+            if (updated.closed_reason) setClosedReason(updated.closed_reason)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(storeChannel)
+    }
   }, [])
 
   const addItem = (item: MenuItem, selected: SelectedOptions, instructions?: string, packaging?: 'dine-in' | 'takeaway') => {
@@ -306,6 +334,11 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
               <span className="inline-flex items-center gap-1 rounded-full bg-white/20 border border-white/25 px-3 py-0.5 text-xs font-bold text-white shadow-xs">
                 <UtensilsCrossed className="h-3 w-3 text-amber-300" /> โต๊ะ {tableId}
               </span>
+              {!isStoreOpen && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-500/80 border border-red-300/50 px-3 py-0.5 text-xs font-bold text-white animate-pulse shadow-xs">
+                  <Moon className="h-3 w-3" /> 🔴 ร้านปิดรับออเดอร์
+                </span>
+              )}
             </div>
 
             <h1 className="font-display text-3xl sm:text-4xl font-black tracking-tight text-white drop-shadow-sm">
@@ -349,20 +382,32 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
         </div>
       </header>
 
-      <nav aria-label="หมวดหมู่เมนู" className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-md">
-        <ul className="flex gap-2 overflow-x-auto px-5 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* Store Closed Warning Banner */}
+      {!isStoreOpen && (
+        <div className="mt-4 flex items-center gap-3 rounded-2xl bg-destructive/10 border-2 border-destructive/30 p-4 text-destructive shadow-sm">
+          <AlertCircle className="h-6 w-6 shrink-0 text-destructive animate-bounce" />
+          <div className="text-xs sm:text-sm">
+            <p className="font-bold text-destructive">🌙 ขณะนี้ร้านแม่แต๋ปิดรับออเดอร์ชั่วคราว</p>
+            <p className="text-muted-foreground mt-0.5">{closedReason} (เวลาเปิด 9:00 - 16:00 น. หยุดวันเสาร์)</p>
+          </div>
+        </div>
+      )}
+
+      {/* Category selector */}
+      <nav aria-label="หมวดหมู่อาหาร" className="sticky top-2 z-30 mt-4">
+        <ul className="flex gap-2 overflow-x-auto rounded-2xl bg-card/90 p-2 shadow-lg backdrop-blur-md border border-border scrollbar-none">
           {categories.map((cat) => {
-            const isActive = cat.id === activeCategory
+            const isActive = activeCategory === cat.id
             return (
-              <li key={cat.id}>
+              <li key={cat.id} className="shrink-0">
                 <button
                   type="button"
                   onClick={() => setActiveCategory(cat.id)}
                   aria-pressed={isActive}
-                  className={`whitespace-nowrap rounded-full px-5 py-2 font-display text-sm sm:text-base font-semibold transition-all duration-200 ${
+                  className={`rounded-xl px-4 py-2 text-xs font-bold transition-all duration-200 cursor-pointer ${
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]'
-                      : 'bg-secondary/70 text-secondary-foreground border border-border/60 hover:bg-secondary hover:text-foreground'
+                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                   }`}
                 >
                   {cat.label}
@@ -379,7 +424,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
             key={item.id}
             item={item}
             quantity={Object.values(cart).filter((x) => x.item.id === item.id).reduce((n, x) => n + x.quantity, 0)}
-            isAvailable={availabilityMap[item.id] ?? true}
+            isAvailable={(availabilityMap[item.id] ?? true) && isStoreOpen}
             onAdd={addItem}
             onRemove={removeItemByMenu}
           />
@@ -390,6 +435,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
         lines={lines}
         totalCount={totalCount}
         totalPrice={totalPrice}
+        isStoreOpen={isStoreOpen}
         onAdd={addItem}
         onRemove={removeItem}
         onClear={() => setCart({})}

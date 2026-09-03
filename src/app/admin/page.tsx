@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
+import { getStoreSettings, setStoreOpenStatus } from '@/lib/store-settings'
 import {
   DollarSign,
   ShoppingBag,
@@ -137,11 +138,19 @@ export default function AdminPage() {
   const [selectedCustomDate, setSelectedCustomDate] = useState<string>(getTodayISO())
   const [loading, setLoading] = useState(true)
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
+  const [isStoreOpen, setIsStoreOpen] = useState(true)
   const router = useRouter()
+
+  const handleToggleStoreOpen = async () => {
+    const nextStatus = !isStoreOpen
+    setIsStoreOpen(nextStatus)
+    await setStoreOpenStatus(nextStatus)
+  }
 
   const fetchData = async () => {
     setLoading(true)
     try {
+      getStoreSettings().then((s) => setIsStoreOpen(s.is_open))
       const supabase = createClient()
 
       // Fetch tables
@@ -799,7 +808,21 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Store Open/Closed Toggle */}
+          <button
+            type="button"
+            onClick={handleToggleStoreOpen}
+            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition-all shadow-xs cursor-pointer ${
+              isStoreOpen
+                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/25'
+                : 'bg-destructive/15 border border-destructive/30 text-destructive hover:bg-destructive/25'
+            }`}
+          >
+            <span className={`h-2.5 w-2.5 rounded-full ${isStoreOpen ? 'bg-emerald-500 animate-pulse' : 'bg-destructive'}`} />
+            <span>{isStoreOpen ? '🟢 ร้านเปิดรับออเดอร์' : '🔴 ร้านปิดรับออเดอร์'}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => router.push('/staff')}

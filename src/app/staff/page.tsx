@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
+import { getStoreSettings, setStoreOpenStatus } from '@/lib/store-settings'
 import {
   Clock,
   ChefHat,
@@ -23,6 +24,13 @@ import {
   Bell,
   Banknote,
   Smartphone,
+  PlusCircle,
+  Plus,
+  Minus,
+  Trash2,
+  Store,
+  Moon,
+  Loader2,
 } from 'lucide-react'
 
 type OrderItemOption = {
@@ -159,7 +167,101 @@ export default function StaffPage() {
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
   const [stockModalOpen, setStockModalOpen] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [isStoreOpen, setIsStoreOpen] = useState(true)
+  const [posModalOpen, setPosModalOpen] = useState(false)
+  const [posTableId, setPosTableId] = useState('1')
+  const [posCategory, setPosCategory] = useState('all')
+  const [posCart, setPosCart] = useState<{ menuItem: MenuItem; qty: number; note: string }[]>([])
+  const [posSubmitting, setPosSubmitting] = useState(false)
   const prevPendingCountRef = useRef<number | null>(null)
+
+  const handleToggleStoreOpen = async () => {
+    const next = !isStoreOpen
+    setIsStoreOpen(next)
+    await setStoreOpenStatus(next)
+  }
+
+  const handlePosAddToCart = (item: MenuItem) => {
+    setPosCart((prev) => {
+      const idx = prev.findIndex((c) => c.menuItem.id === item.id)
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = { ...next[idx], qty: next[idx].qty + 1 }
+        return next
+      }
+      return [...prev, { menuItem: item, qty: 1, note: '' }]
+    })
+  }
+
+  const handlePosRemoveFromCart = (itemId: string) => {
+    setPosCart((prev) => {
+      const idx = prev.findIndex((c) => c.menuItem.id === itemId)
+      if (idx < 0) return prev
+      if (prev[idx].qty <= 1) {
+        return prev.filter((c) => c.menuItem.id !== itemId)
+      }
+      const next = [...prev]
+      next[idx] = { ...next[idx], qty: next[idx].qty - 1 }
+      return next
+    })
+  }
+
+  const handlePosSubmitOrder = async () => {
+    if (posCart.length === 0) {
+      alert('กรุณาเลือกรายการอาหารก่อนกดสั่งครับ')
+      return
+    }
+    setPosSubmitting(true)
+    try {
+      const supabase = createClient()
+      const total = posCart.reduce((sum, c) => sum + c.menuItem.price * c.qty, 0)
+      const tableStr = posTableId === 'takeaway' ? 'กลับบ้าน' : `T${posTableId}`
+
+      // 1. Insert order
+      const { data: newOrder, error: orderErr } = await supabase
+        .from('orders')
+        .insert({
+          table_id: tableStr,
+          status: 'pending',
+          total,
+        })
+        .select()
+        .single()
+
+      if (orderErr) throw orderErr
+
+      // 2. Insert order items
+      const orderItems = posCart.map((c) => ({
+        order_id: newOrder.id,
+        menu_item_id: c.menuItem.id,
+        name: c.menuItem.name,
+        price: c.menuItem.price,
+        qty: c.qty,
+      }))
+
+      const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
+      if (itemsErr) throw itemsErr
+
+      // 3. Insert payment record (Cash)
+      await supabase.from('payments').insert({
+        order_id: newOrder.id,
+        payment_method: 'cash',
+        amount: total,
+        status: 'pending',
+      })
+
+      // Announce sound and refresh
+      playOrderSound(posTableId === 'takeaway' ? 'กลับบ้าน' : posTableId)
+      setPosCart([])
+      setPosModalOpen(false)
+      fetchOrdersAndMenu()
+    } catch (err: any) {
+      console.error('POS order error:', err)
+      alert(err.message || 'เกิดข้อผิดพลาดในการบันทึกออเดอร์')
+    } finally {
+      setPosSubmitting(false)
+    }
+  }
 
   useEffect(() => {
     // Warm up speech voices & unlock AudioContext on first user interaction
@@ -379,6 +481,30 @@ export default function StaffPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Store Open/Closed Toggle */}
+          <button
+            type="button"
+            onClick={handleToggleStoreOpen}
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition-all shadow-xs cursor-pointer ${
+              isStoreOpen
+                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/25'
+                : 'bg-destructive/15 border border-destructive/30 text-destructive hover:bg-destructive/25'
+            }`}
+          >
+            <span className={`h-2.5 w-2.5 rounded-full ${isStoreOpen ? 'bg-emerald-500 animate-pulse' : 'bg-destructive'}`} />
+            <span>{isStoreOpen ? '🟢 ร้านเปิด' : '🔴 ร้านปิด'}</span>
+          </button>
+
+          {/* POS Quick Order Button */}
+          <button
+            type="button"
+            onClick={() => setPosModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 transition-transform active:scale-95 cursor-pointer"
+          >
+            <PlusCircle className="h-4 w-4" />
+            <span>➕ สั่งอาหารหน้าร้าน (POS)</span>
+          </button>
+
           {/* Sound Voice Notification Toggle & Test */}
           <div className="flex items-center gap-1 rounded-full bg-secondary/80 p-0.5 border border-border">
             <button
@@ -722,6 +848,204 @@ export default function StaffPage() {
             </button>
             <h3 className="mb-3 font-display text-base font-bold text-card-foreground">สลิปการโอนเงิน</h3>
             <img src={selectedSlip} alt="Slip" className="mx-auto max-h-[70vh] rounded-2xl object-contain" />
+          </div>
+        </div>
+      )}
+
+      {/* 🛍️ POS QUICK ORDER MODAL FOR WALK-IN / PHONE-IN CUSTOMERS */}
+      {posModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          <button
+            type="button"
+            onClick={() => setPosModalOpen(false)}
+            className="absolute inset-0 bg-foreground/50 backdrop-blur-sm"
+          />
+          <div className="relative z-10 flex flex-col max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl bg-card shadow-2xl border border-border">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border p-4 bg-muted/40">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                  <ShoppingBag className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold text-card-foreground">รับออเดอร์หน้าร้าน (POS Mode)</h3>
+                  <p className="text-[11px] text-muted-foreground">สำหรับลูกค้าที่สั่งกับแม่ค้าโดยตรง หรือ สั่งกลับบ้าน</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPosModalOpen(false)}
+                className="rounded-full bg-secondary p-2 text-secondary-foreground hover:bg-secondary/80"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Select Table / Takeaway */}
+              <div>
+                <label className="text-xs font-bold text-muted-foreground mb-1.5 block">📍 เลือกโต๊ะ หรือ สั่งกลับบ้าน:</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setPosTableId(t)}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                        posTableId === t
+                          ? 'bg-primary text-primary-foreground shadow-xs scale-105'
+                          : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                      }`}
+                    >
+                      โต๊ะ {t}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPosTableId('takeaway')}
+                    className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                      posTableId === 'takeaway'
+                        ? 'bg-amber-500 text-white shadow-xs scale-105'
+                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    }`}
+                  >
+                    🛍️ ใส่ถุงกลับบ้าน
+                  </button>
+                </div>
+              </div>
+
+              {/* Menu List */}
+              <div>
+                <label className="text-xs font-bold text-muted-foreground mb-1.5 block">🍜 แตะเลือกเมนูเพื่อเพิ่มลงบิล:</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {menuItems
+                    .filter((m) => m.is_available)
+                    .map((item) => {
+                      const inCart = posCart.find((c) => c.menuItem.id === item.id)
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => handlePosAddToCart(item)}
+                          className={`flex items-center justify-between rounded-2xl border p-2.5 transition-all cursor-pointer active:scale-98 ${
+                            inCart
+                              ? 'border-primary/50 bg-primary/5'
+                              : 'border-border bg-card hover:bg-secondary/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {item.image_url ? (
+                              <img src={item.image_url} alt={item.name} className="h-11 w-11 shrink-0 rounded-xl object-cover" />
+                            ) : (
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                                <Utensils className="h-5 w-5" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-bold text-card-foreground">{item.name}</p>
+                              <p className="text-xs font-bold text-primary">{item.price} บาท</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {inCart ? (
+                              <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground shadow-xs">
+                                ×{inCart.qty}
+                              </span>
+                            ) : (
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground">
+                                <Plus className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+
+              {/* Live Cart in Modal */}
+              {posCart.length > 0 && (
+                <div className="rounded-2xl border border-border bg-muted/30 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-card-foreground border-b border-border pb-1.5">
+                    <span>📋 รายการที่เลือก ({posCart.reduce((sum, c) => sum + c.qty, 0)} รายการ)</span>
+                    <button
+                      type="button"
+                      onClick={() => setPosCart([])}
+                      className="text-muted-foreground hover:text-destructive text-[11px] flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="h-3 w-3" /> ล้างทั้งหมด
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {posCart.map((c) => (
+                      <div key={c.menuItem.id} className="flex items-center justify-between text-xs">
+                        <span className="truncate font-semibold text-card-foreground">
+                          {c.menuItem.name} × {c.qty}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold text-primary">{c.menuItem.price * c.qty}฿</span>
+                          <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handlePosRemoveFromCart(c.menuItem.id)}
+                              className="h-5 w-5 flex items-center justify-center rounded bg-card text-card-foreground"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="text-[11px] font-bold px-1">{c.qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => handlePosAddToCart(c.menuItem)}
+                              className="h-5 w-5 flex items-center justify-center rounded bg-primary text-primary-foreground"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-border p-4 bg-muted/40 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] text-muted-foreground">ยอดรวมทั้งหมด</p>
+                <p className="font-display text-xl font-bold text-primary">
+                  {posCart.reduce((sum, c) => sum + c.menuItem.price * c.qty, 0)} บาท
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPosModalOpen(false)}
+                  className="rounded-full bg-secondary px-4 py-2.5 text-xs font-bold text-secondary-foreground hover:bg-secondary/80"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  disabled={posCart.length === 0 || posSubmitting}
+                  onClick={handlePosSubmitOrder}
+                  className="flex items-center gap-1.5 rounded-full bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {posSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> กำลังส่ง...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" /> 🚀 ส่งเข้าห้องครัวทันที
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
