@@ -105,23 +105,12 @@ CREATE TABLE payments (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2.10 ตารางตั้งค่าสถานะร้านและเปิด/ปิดรับออเดอร์ (Store Settings)
-CREATE TABLE IF NOT EXISTS store_settings (
-    id TEXT PRIMARY KEY DEFAULT 'main',
-    is_open BOOLEAN NOT NULL DEFAULT true,
-    closed_reason TEXT DEFAULT 'ขณะนี้ร้านปิดรับออเดอร์ชั่วคราว',
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-INSERT INTO store_settings (id, is_open) VALUES ('main', true) ON CONFLICT (id) DO NOTHING;
-
 -- ==============================================================================
 -- 3. เปิดระบบ Realtime เพื่อแจ้งเตือนห้องครัว & รีเซ็ตบิล (0.1s)
 -- ==============================================================================
 DO $$
 BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE orders, payments, menu_items, tables, option_groups, options, store_settings;
-EXCEPTION
     WHEN OTHERS THEN NULL;
 END $$;
 
@@ -138,11 +127,7 @@ ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_item_options ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE store_settings ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Public Read Store Settings" ON store_settings FOR SELECT USING (true);
-CREATE POLICY "Public Update Store Settings" ON store_settings FOR ALL USING (true);
-
-CREATE POLICY "Public full access to tables" ON tables FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public full access to categories" ON categories FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public full access to menu_items" ON menu_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public full access to option_groups" ON option_groups FOR ALL USING (true) WITH CHECK (true);

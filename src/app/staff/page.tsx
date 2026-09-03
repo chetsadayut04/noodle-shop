@@ -574,6 +574,65 @@ export default function StaffPage() {
         </div>
       </header>
 
+      {/* 🚀 QUICK ACTION HERO BAR (POS & STORE TOGGLE) */}
+      <div className="mx-auto mt-4 max-w-7xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* POS Quick Order Button */}
+          <button
+            type="button"
+            onClick={() => setPosModalOpen(true)}
+            className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-red-600 p-4 text-white shadow-md shadow-amber-500/20 hover:opacity-95 transition-transform active:scale-98 cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-xs">
+                <PlusCircle className="h-6 w-6 text-white" />
+              </div>
+              <div className="text-left">
+                <h3 className="font-display text-base font-bold">➕ รับออเดอร์หน้าร้าน (POS)</h3>
+                <p className="text-xs text-amber-100/90">สำหรับลูกค้าสั่งกับแม่ค้า / สแกนไม่เป็น / สั่งกลับบ้าน</p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-white/80 shrink-0" />
+          </button>
+
+          {/* Store Open/Closed Master Switch Banner */}
+          <button
+            type="button"
+            onClick={handleToggleStoreOpen}
+            className={`flex items-center justify-between gap-3 rounded-2xl p-4 transition-all shadow-xs cursor-pointer border ${
+              isStoreOpen
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 hover:bg-emerald-500/20'
+                : 'bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                  isStoreOpen ? 'bg-emerald-500 text-white' : 'bg-destructive text-white'
+                }`}
+              >
+                {isStoreOpen ? <Store className="h-6 w-6" /> : <Moon className="h-6 w-6" />}
+              </div>
+              <div className="text-left">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display text-base font-bold">
+                    {isStoreOpen ? '🟢 ร้านเปิดรับออเดอร์' : '🔴 ร้านปิดรับออเดอร์'}
+                  </h3>
+                  <span className="rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-bold border border-border">
+                    กดเพื่อสลับ
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {isStoreOpen
+                    ? 'ลูกค้าสามารถสแกน QR สั่งอาหารได้ตามปกติ'
+                    : 'ล็อกการสั่งทั้งหมดเพื่อป้องกันการกดสั่งแกล้ง'}
+                </p>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* 2-COLUMN SINGLE PAGE LAYOUT */}
       <div className="mx-auto mt-6 grid max-w-7xl grid-cols-1 gap-6 lg:grid-cols-2">
         {/* COLUMN 1: 🔥 ออเดอร์ที่ต้องทำ (Pending & Preparing) */}
