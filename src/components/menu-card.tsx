@@ -9,7 +9,7 @@ type MenuCardProps = {
   item: MenuItem
   quantity: number
   isAvailable?: boolean
-  onAdd: (item: MenuItem, selected: SelectedOptions, instructions?: string) => void
+  onAdd: (item: MenuItem, selected: SelectedOptions, instructions?: string, packaging?: 'dine-in' | 'takeaway') => void
   onRemove: (item: MenuItem) => void
 }
 
@@ -17,13 +17,15 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
   const [customizing, setCustomizing] = useState(false)
   const [selected, setSelected] = useState<SelectedOptions>(() => defaultOptions(item))
   const [instructions, setInstructions] = useState('')
+  const [packaging, setPackaging] = useState<'dine-in' | 'takeaway'>('dine-in')
 
   const choose = (groupId: string, option: MenuOption) => setSelected((prev) => ({ ...prev, [groupId]: [option] }))
   const add = () => {
     if (!item.options || hasRequiredOptions(item, selected)) {
-      onAdd(item, item.options ? selected : {}, instructions.trim() || undefined)
+      onAdd(item, item.options ? selected : {}, instructions.trim() || undefined, packaging)
       setCustomizing(false)
       setInstructions('')
+      setPackaging('dine-in')
     }
   }
 
@@ -35,6 +37,11 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
           alt={item.name}
           className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 ${!isAvailable ? 'grayscale opacity-60' : ''}`}
         />
+        {item.badge && isAvailable && (
+          <span className="absolute top-2 left-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-md">
+            {item.badge}
+          </span>
+        )}
         {!isAvailable && (
           <span className="absolute top-2 right-2 rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground shadow-xs">
             สินค้าหมด
@@ -165,6 +172,37 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
                   </div>
                 </fieldset>
               )}
+
+              {/* Packaging: Dine-in vs Takeaway */}
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-bold text-card-foreground">
+                  <span>🥡 รูปแบบการเสิร์ฟ</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPackaging('dine-in')}
+                    className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-bold transition-colors ${
+                      packaging === 'dine-in'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-card-foreground hover:bg-secondary/40'
+                    }`}
+                  >
+                    <span>🍜 ทานที่ร้าน</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPackaging('takeaway')}
+                    className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-bold transition-colors ${
+                      packaging === 'takeaway'
+                        ? 'border-amber-600 bg-amber-500/15 text-amber-700'
+                        : 'border-border text-card-foreground hover:bg-secondary/40'
+                    }`}
+                  >
+                    <span>🥡 ใส่ถุงกลับบ้าน</span>
+                  </button>
+                </div>
+              </div>
 
               {/* Special Instructions / Note */}
               <div className="rounded-2xl border border-border bg-secondary/30 p-3.5 space-y-2">

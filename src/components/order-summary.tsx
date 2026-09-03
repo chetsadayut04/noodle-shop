@@ -6,7 +6,7 @@ import { optionPrice, optionSummary, optionsKey, type MenuItem, type SelectedOpt
 import { generatePromptPayQR, uploadSlipForOrder, createOrderOnly } from '@/lib/payment'
 import { createClient } from '@/utils/supabase/client'
 
-export type SummaryLine = { item: MenuItem; selected: SelectedOptions; instructions?: string; quantity: number }
+export type SummaryLine = { item: MenuItem; selected: SelectedOptions; instructions?: string; packaging?: 'dine-in' | 'takeaway'; quantity: number }
 
 type OrderSummaryProps = {
   lines: SummaryLine[]
@@ -160,15 +160,15 @@ export function OrderSummary({ lines, totalPrice, tableId = 'T1', lastOrderId, o
           ) : (
             <ul className="divide-y divide-border">
               {lines.map((line) => (
-                <li key={`${line.item.id}-${optionsKey(line.selected, line.instructions)}`} className="flex gap-3 py-3 text-xs">
+                <li key={`${line.item.id}-${optionsKey(line.selected, line.instructions, line.packaging)}`} className="flex gap-3 py-3 text-xs">
                   <img src={line.item.image} alt={line.item.name} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
                   <div className="min-w-0 flex-1">
                     <div className="flex justify-between font-semibold text-card-foreground">
                       <span>{line.item.name} × {line.quantity}</span>
                       <span className="text-primary">{(line.item.price + optionPrice(line.selected)) * line.quantity}฿</span>
                     </div>
-                    {optionSummary(line.selected, line.instructions) && (
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">{optionSummary(line.selected, line.instructions)}</p>
+                    {optionSummary(line.selected, line.instructions, line.packaging) && (
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">{optionSummary(line.selected, line.instructions, line.packaging)}</p>
                     )}
                   </div>
                 </li>

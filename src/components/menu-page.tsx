@@ -9,7 +9,7 @@ import { createClient } from '@/utils/supabase/client'
 import { createOrderOnly } from '@/lib/payment'
 import { Receipt, UtensilsCrossed, Shield, UserCheck, CheckCircle2, Loader2 } from 'lucide-react'
 
-type CartEntry = { item: MenuItem; selected: SelectedOptions; instructions?: string; quantity: number }
+type CartEntry = { item: MenuItem; selected: SelectedOptions; instructions?: string; packaging?: 'dine-in' | 'takeaway'; quantity: number }
 
 type MenuPageProps = {
   tableId?: string
@@ -104,11 +104,11 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
     fetchMenuItemsAndOptions()
   }, [])
 
-  const addItem = (item: MenuItem, selected: SelectedOptions, instructions?: string) => {
-    const key = `${item.id}-${optionsKey(selected, instructions)}`
+  const addItem = (item: MenuItem, selected: SelectedOptions, instructions?: string, packaging?: 'dine-in' | 'takeaway') => {
+    const key = `${item.id}-${optionsKey(selected, instructions, packaging)}`
     setCart((prev) => ({
       ...prev,
-      [key]: { item, selected, instructions, quantity: (prev[key]?.quantity ?? 0) + 1 },
+      [key]: { item, selected, instructions, packaging, quantity: (prev[key]?.quantity ?? 0) + 1 },
     }))
   }
 
@@ -117,7 +117,8 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
       const key = Object.keys(prev).find(
         (k) =>
           prev[k].item.id === entry.item.id &&
-          optionsKey(prev[k].selected, prev[k].instructions) === optionsKey(entry.selected, entry.instructions)
+          optionsKey(prev[k].selected, prev[k].instructions, prev[k].packaging) ===
+            optionsKey(entry.selected, entry.instructions, entry.packaging)
       )
       if (!key) return prev
       const next = { ...prev }
