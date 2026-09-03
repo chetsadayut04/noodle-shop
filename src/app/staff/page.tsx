@@ -208,6 +208,10 @@ export default function StaffPage() {
   }
 
   const handlePosItemClick = (item: MenuItem) => {
+    if (!item.is_available) {
+      alert(`ขออภัยครับ เมนู "${item.name}" ปิดสถานะสินค้าหมดอยู่ครับ`)
+      return
+    }
     if (item.options?.groups && item.options.groups.length > 0) {
       setCustomizingItem(item)
       setCustomSelected(defaultOptions(item as any))
@@ -440,6 +444,13 @@ export default function StaffPage() {
           if (soundEnabled) {
             playOrderSound(newOrder?.table_id)
           }
+          fetchOrdersAndMenu()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_items' },
+        () => {
           fetchOrdersAndMenu()
         }
       )
@@ -1120,10 +1131,13 @@ export default function StaffPage() {
                   }
 
                   const filteredItems = menuItems
-                    .filter((m) => m.is_available)
                     .filter((m) => posCategory === 'all' || m.category_id === posCategory)
                     .filter((m) => !posSearch.trim() || m.name.toLowerCase().includes(posSearch.trim().toLowerCase()))
                     .sort((a, b) => {
+                      // Available items first, out-of-stock items last
+                      if (a.is_available !== b.is_available) {
+                        return a.is_available ? -1 : 1
+                      }
                       const orderA = categoryOrder[a.category_id] ?? 99
                       const orderB = categoryOrder[b.category_id] ?? 99
                       if (orderA !== orderB) return orderA - orderB
@@ -1162,40 +1176,67 @@ export default function StaffPage() {
                               .filter((c) => c.menuItem.id === item.id)
                               .reduce((sum, c) => sum + c.qty, 0)
                             const hasOpts = item.options?.groups && item.options.groups.length > 0
+                            const isOutOfStock = !item.is_available
 
                             return (
                               <div
                                 key={item.id}
                                 onClick={() => handlePosItemClick(item)}
-                                className={`flex items-center justify-between rounded-2xl border p-2.5 transition-all cursor-pointer active:scale-98 ${
-                                  inCartCount > 0
-                                    ? 'border-primary/50 bg-primary/5 shadow-xs'
-                                    : 'border-border bg-card hover:bg-secondary/40'
+                                className={`flex items-center justify-between rounded-2xl border p-2.5 transition-all ${
+                                  isOutOfStock
+                                    ? 'border-destructive/30 bg-destructive/5 opacity-60 cursor-not-allowed'
+                                    : inCartCount > 0
+                                    ? 'border-primary/50 bg-primary/5 shadow-xs cursor-pointer active:scale-98'
+                                    : 'border-border bg-card hover:bg-secondary/40 cursor-pointer active:scale-98'
                                 }`}
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
-                                  {item.image_url ? (
-                                    <img src={item.image_url} alt={item.name} className="h-11 w-11 shrink-0 rounded-xl object-cover" />
-                                  ) : (
-                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
-                                      <Utensils className="h-5 w-5" />
-                                    </div>
-                                  )}
+                                  <div className="relative h-11 w-11 shrink-0">
+                                    {item.image_url ? (
+                                      <img
+                                        src={item.image_url}
+                                        alt={item.name}
+                                        className={`h-full w-full rounded-xl object-cover ${isOutOfStock ? 'grayscale opacity-60' : ''}`}
+                                      />
+                                    ) : (
+                                      <div className="flex h-full w-full items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                                        <Utensils className="h-5 w-5" />
+                                      </div>
+                                    )}
+                                    {isOutOfStock && (
+                                      <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[8px] font-bold text-destructive-foreground">
+                                        หมด
+                                      </span>
+                                    )}
+                                  </div>
+
                                   <div className="min-w-0">
-                                    <p className="truncate text-xs font-bold text-card-foreground">{item.name}</p>
+                                    <p className={`truncate text-xs font-bold ${isOutOfStock ? 'text-muted-foreground line-through' : 'text-card-foreground'}`}>
+                                      {item.name}
+                                    </p>
                                     <div className="flex items-center gap-1.5 mt-0.5">
-                                      <p className="text-xs font-bold text-primary">{item.price} บาท</p>
-                                      {hasOpts && (
+                                      <p className={`text-xs font-bold ${isOutOfStock ? 'text-muted-foreground' : 'text-primary'}`}>
+                                        {item.price} บาท
+                                      </p>
+                                      {isOutOfStock ? (
+                                        <span className="inline-flex items-center gap-0.5 rounded-md bg-destructive/15 px-1.5 py-0.2 text-[10px] font-bold text-destructive">
+                                          🔴 สินค้าหมด
+                                        </span>
+                                      ) : hasOpts ? (
                                         <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.2 text-[10px] font-bold text-amber-700">
                                           <SlidersHorizontal className="h-2.5 w-2.5" /> เลือกเส้น/ขนาด
                                         </span>
-                                      )}
+                                      ) : null}
                                     </div>
                                   </div>
                                 </div>
 
                                 <div className="flex items-center gap-1">
-                                  {inCartCount > 0 ? (
+                                  {isOutOfStock ? (
+                                    <span className="rounded-full bg-destructive/10 px-2 py-1 text-[10px] font-bold text-destructive">
+                                      หมด
+                                    </span>
+                                  ) : inCartCount > 0 ? (
                                     <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground shadow-xs">
                                       ×{inCartCount}
                                     </span>
