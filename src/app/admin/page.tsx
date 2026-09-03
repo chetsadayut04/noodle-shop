@@ -25,6 +25,8 @@ import {
   Calendar,
   Camera,
   UploadCloud,
+  Loader2,
+  Pencil,
 } from 'lucide-react'
 import {
   BarChart,
@@ -261,6 +263,47 @@ export default function AdminPage() {
       alert(err.message || 'ไม่สามารถเพิ่มเมนูอาหารได้')
     } finally {
       setUploadingImage(false)
+    }
+  }
+
+  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null)
+
+  // 1-Click Inline Image Update for existing menu items
+  const handleUpdateItemImage = async (itemId: string, file: File) => {
+    setUpdatingItemId(itemId)
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop() || 'jpg'
+      const fileName = `menu-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+
+      // Try uploading to menu-images bucket first
+      let uploadRes = await supabase.storage.from('menu-images').upload(fileName, file)
+      let bucketName = 'menu-images'
+
+      // Fallback to slips bucket if menu-images bucket is not yet created
+      if (uploadRes.error) {
+        uploadRes = await supabase.storage.from('slips').upload(`menu-${fileName}`, file)
+        bucketName = 'slips'
+      }
+
+      if (uploadRes.error) throw uploadRes.error
+
+      const { data } = supabase.storage.from(bucketName).getPublicUrl(uploadRes.data.path)
+      const newImageUrl = data.publicUrl
+
+      const { error: updateError } = await supabase
+        .from('menu_items')
+        .update({ image_url: newImageUrl })
+        .eq('id', itemId)
+
+      if (updateError) throw updateError
+
+      fetchData()
+    } catch (err: any) {
+      console.error('Update item image error:', err)
+      alert(err.message || 'ไม่สามารถอัปเดตรูปภาพได้')
+    } finally {
+      setUpdatingItemId(null)
     }
   }
 
@@ -1115,12 +1158,39 @@ export default function AdminPage() {
               filteredMenuItems.map((item) => (
                 <li key={item.id} className="flex items-center justify-between py-2.5 text-xs">
                   <div className="flex items-center gap-3 min-w-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={item.image_url || (item.category_id === 'noodles' ? '/food/nam-tok.png' : item.category_id === 'khaomangai' ? '/food/khao-man-gai.png' : '/food/cha-thai.png')}
-                      alt={item.name}
-                      className="h-10 w-10 shrink-0 rounded-xl object-cover border border-border bg-secondary"
-                    />
+                    {/* Interactive Thumbnail: Click/Tap to change image directly! */}
+                    <label
+                      className="relative group h-11 w-11 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-border bg-secondary shadow-2xs"
+                      title="📷 คลิกหรือแตะที่รูปเพื่อเปลี่ยนรูปภาพอาหารนี้"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={item.image_url || (item.category_id === 'noodles' ? '/food/nam-tok.png' : item.category_id === 'khaomangai' ? '/food/khao-man-gai.png' : '/food/cha-thai.png')}
+                        alt={item.name}
+                        className="h-full w-full object-cover transition-transform group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity text-white">
+                        <Camera className="h-3.5 w-3.5 drop-shadow-xs" />
+                        <span className="text-[7px] font-bold">เปลี่ยนรูป</span>
+                      </div>
+                      {updatingItemId === item.id && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-white">
+                          <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={updatingItemId === item.id}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handleUpdateItemImage(item.id, file)
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
                     <div className="truncate">
                       <p className="font-semibold text-card-foreground truncate">{item.name}</p>
                       <p className="text-[11px] text-muted-foreground">
