@@ -32,7 +32,16 @@ import {
   Moon,
   Loader2,
   Search,
+  SlidersHorizontal,
 } from 'lucide-react'
+import {
+  menuItems as staticMenuItems,
+  defaultOptions,
+  hasRequiredOptions,
+  optionPrice,
+  type SelectedOptions,
+  type MenuOption,
+} from '@/lib/menu'
 
 type OrderItemOption = {
   id: string
@@ -45,7 +54,9 @@ type OrderItem = {
   name: string
   price: number
   qty: number
-  order_item_options?: OrderItemOption[]
+  instructions?: string | null
+  options?: OrderItemOption[] | null
+  order_item_options?: OrderItemOption[] | null
 }
 
 type Payment = {
@@ -74,6 +85,16 @@ type MenuItem = {
   image_url: string
   is_available: boolean
   category_id: string
+  options?: any
+}
+
+type PosCartItem = {
+  id: string
+  menuItem: MenuItem
+  selectedOptions: SelectedOptions
+  instructions: string
+  unitPrice: number
+  qty: number
 }
 
 let sharedAudioCtx: AudioContext | null = null
@@ -173,7 +194,10 @@ export default function StaffPage() {
   const [posTableId, setPosTableId] = useState('1')
   const [posCategory, setPosCategory] = useState('all')
   const [posSearch, setPosSearch] = useState('')
-  const [posCart, setPosCart] = useState<{ menuItem: MenuItem; qty: number; note: string }[]>([])
+  const [posCart, setPosCart] = useState<PosCartItem[]>([])
+  const [customizingItem, setCustomizingItem] = useState<MenuItem | null>(null)
+  const [customSelected, setCustomSelected] = useState<SelectedOptions>({})
+  const [customInstructions, setCustomInstructions] = useState('')
   const [posSubmitting, setPosSubmitting] = useState(false)
   const prevPendingCountRef = useRef<number | null>(null)
 
@@ -183,24 +207,51 @@ export default function StaffPage() {
     await setStoreOpenStatus(next)
   }
 
-  const handlePosAddToCart = (item: MenuItem) => {
+  const handlePosItemClick = (item: MenuItem) => {
+    if (item.options?.groups && item.options.groups.length > 0) {
+      setCustomizingItem(item)
+      setCustomSelected(defaultOptions(item as any))
+      setCustomInstructions('')
+    } else {
+      handlePosAddToCart(item, {}, '')
+    }
+  }
+
+  const handlePosAddToCart = (item: MenuItem, selected: SelectedOptions, instructions: string) => {
+    const extra = optionPrice(selected)
+    const unitPrice = (Number(item.price) || 0) + extra
+    const selectedKey = JSON.stringify(selected) + instructions.trim()
+
     setPosCart((prev) => {
-      const idx = prev.findIndex((c) => c.menuItem.id === item.id)
+      const idx = prev.findIndex(
+        (c) => c.menuItem.id === item.id && JSON.stringify(c.selectedOptions) + c.instructions.trim() === selectedKey
+      )
       if (idx >= 0) {
         const next = [...prev]
         next[idx] = { ...next[idx], qty: next[idx].qty + 1 }
         return next
       }
-      return [...prev, { menuItem: item, qty: 1, note: '' }]
+      return [
+        ...prev,
+        {
+          id: `${item.id}-${Date.now()}-${Math.random()}`,
+          menuItem: item,
+          selectedOptions: selected,
+          instructions: instructions.trim(),
+          unitPrice,
+          qty: 1,
+        },
+      ]
     })
+    setCustomizingItem(null)
   }
 
-  const handlePosRemoveFromCart = (itemId: string) => {
+  const handlePosRemoveFromCart = (cartItemId: string) => {
     setPosCart((prev) => {
-      const idx = prev.findIndex((c) => c.menuItem.id === itemId)
+      const idx = prev.findIndex((c) => c.id === cartItemId)
       if (idx < 0) return prev
       if (prev[idx].qty <= 1) {
-        return prev.filter((c) => c.menuItem.id !== itemId)
+        return prev.filter((c) => c.id !== cartItemId)
       }
       const next = [...prev]
       next[idx] = { ...next[idx], qty: next[idx].qty - 1 }
@@ -216,7 +267,7 @@ export default function StaffPage() {
     setPosSubmitting(true)
     try {
       const supabase = createClient()
-      const total = posCart.reduce((sum, c) => sum + c.menuItem.price * c.qty, 0)
+      const total = posCart.reduce((sum, c) => sum + c.unitPrice * c.qty, 0)
       const tableStr = posTableId === 'takeaway' ? 'กลับบ้าน' : `T${posTableId}`
 
       // 1. Insert order
@@ -232,14 +283,27 @@ export default function StaffPage() {
 
       if (orderErr) throw orderErr
 
-      // 2. Insert order items
-      const orderItems = posCart.map((c) => ({
-        order_id: newOrder.id,
-        menu_item_id: c.menuItem.id,
-        name: c.menuItem.name,
-        price: c.menuItem.price,
-        qty: c.qty,
-      }))
+      // 2. Insert order items with options and instructions
+      const orderItems = posCart.map((c) => {
+        const optionList = Object.values(c.selectedOptions)
+          .flat()
+          .filter(Boolean)
+          .map((o) => ({
+            id: o.id,
+            name: o.label,
+            extra_price: o.price || 0,
+          }))
+
+        return {
+          order_id: newOrder.id,
+          menu_item_id: c.menuItem.id,
+          name: c.menuItem.name,
+          price: c.unitPrice,
+          qty: c.qty,
+          options: optionList.length > 0 ? optionList : null,
+          instructions: c.instructions || null,
+        }
+      })
 
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
       if (itemsErr) throw itemsErr
@@ -317,12 +381,42 @@ export default function StaffPage() {
       }
       prevPendingCountRef.current = pendingCount
 
-      // Fetch menu items
-      const { data: menuData } = await supabase
-        .from('menu_items')
-        .select('*')
-        .order('category_id')
-      setMenuItems(menuData || [])
+      // Fetch menu items, option_groups, options
+      const { data: menuData } = await supabase.from('menu_items').select('*').order('category_id')
+      const { data: dbGroups } = await supabase.from('option_groups').select('*')
+      const { data: dbOptions } = await supabase.from('options').select('*')
+
+      const buildOptions = (menuItemId: string, staticOpts?: any) => {
+        const rawGroups = dbGroups?.filter((g) => g.menu_item_id === menuItemId) || []
+        const itemGroups = rawGroups.filter((grp, idx, self) => self.findIndex((t) => t.name === grp.name) === idx)
+        if (itemGroups.length === 0) return staticOpts
+
+        return {
+          groups: itemGroups.map((g) => ({
+            id: g.id,
+            label: g.name,
+            required: g.is_required,
+            options: (dbOptions?.filter((o) => o.group_id === g.id) || []).map((o) => ({
+              id: o.id,
+              label: o.name,
+              price: Number(o.extra_price) || 0,
+            })),
+          })),
+        }
+      }
+
+      if (menuData && menuData.length > 0) {
+        const dynamicItems = menuData.map((d) => {
+          const staticMatch = staticMenuItems.find((m) => m.id === d.id)
+          return {
+            ...d,
+            options: buildOptions(d.id, staticMatch?.options),
+          }
+        })
+        setMenuItems(dynamicItems)
+      } else {
+        setMenuItems(staticMenuItems as any)
+      }
     } catch (err) {
       console.error('Fetch staff data error:', err)
     } finally {
@@ -656,28 +750,45 @@ export default function StaffPage() {
                             <span>{item.name} × {item.qty}</span>
                             <span>{item.price * item.qty}฿</span>
                           </div>
-                          {item.order_item_options && item.order_item_options.length > 0 && (
-                            <div className="mt-1.5 flex flex-wrap gap-1">
-                              {item.order_item_options.map((opt) => {
-                                const isTakeaway = opt.name.includes('ใส่ถุงกลับบ้าน')
-                                const isNote = opt.name.includes('📝')
-                                return (
-                                  <span
-                                    key={opt.id}
-                                    className={`inline-block rounded-md px-2 py-0.5 text-[11px] font-medium ${
-                                      isTakeaway
-                                        ? 'bg-amber-500/20 text-amber-800 font-bold border border-amber-500/30'
-                                        : isNote
-                                        ? 'bg-blue-500/15 text-blue-800 font-bold border border-blue-500/20'
-                                        : 'bg-secondary text-secondary-foreground'
-                                    }`}
-                                  >
-                                    {opt.name}
-                                  </span>
-                                )
-                              })}
-                            </div>
-                          )}
+                          {(() => {
+                            const allOpts = (item.order_item_options && item.order_item_options.length > 0)
+                              ? item.order_item_options
+                              : (item.options && item.options.length > 0)
+                              ? item.options
+                              : []
+
+                            return (
+                              <>
+                                {allOpts.length > 0 && (
+                                  <div className="mt-1.5 flex flex-wrap gap-1">
+                                    {allOpts.map((opt) => {
+                                      const isTakeaway = opt.name.includes('ใส่ถุงกลับบ้าน')
+                                      const isNote = opt.name.includes('📝')
+                                      return (
+                                        <span
+                                          key={opt.id}
+                                          className={`inline-block rounded-md px-2 py-0.5 text-[11px] font-medium ${
+                                            isTakeaway
+                                              ? 'bg-amber-500/20 text-amber-800 font-bold border border-amber-500/30'
+                                              : isNote
+                                              ? 'bg-blue-500/15 text-blue-800 font-bold border border-blue-500/20'
+                                              : 'bg-secondary text-secondary-foreground'
+                                          }`}
+                                        >
+                                          {opt.name}
+                                        </span>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                                {item.instructions && (
+                                  <div className="mt-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                                    💬 {item.instructions}
+                                  </div>
+                                )}
+                              </>
+                            )
+                          })()}
                         </li>
                       ))}
                     </ul>
@@ -1047,13 +1158,17 @@ export default function StaffPage() {
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {filteredItems.map((item) => {
-                            const inCart = posCart.find((c) => c.menuItem.id === item.id)
+                            const inCartCount = posCart
+                              .filter((c) => c.menuItem.id === item.id)
+                              .reduce((sum, c) => sum + c.qty, 0)
+                            const hasOpts = item.options?.groups && item.options.groups.length > 0
+
                             return (
                               <div
                                 key={item.id}
-                                onClick={() => handlePosAddToCart(item)}
+                                onClick={() => handlePosItemClick(item)}
                                 className={`flex items-center justify-between rounded-2xl border p-2.5 transition-all cursor-pointer active:scale-98 ${
-                                  inCart
+                                  inCartCount > 0
                                     ? 'border-primary/50 bg-primary/5 shadow-xs'
                                     : 'border-border bg-card hover:bg-secondary/40'
                                 }`}
@@ -1068,14 +1183,21 @@ export default function StaffPage() {
                                   )}
                                   <div className="min-w-0">
                                     <p className="truncate text-xs font-bold text-card-foreground">{item.name}</p>
-                                    <p className="text-xs font-bold text-primary">{item.price} บาท</p>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      <p className="text-xs font-bold text-primary">{item.price} บาท</p>
+                                      {hasOpts && (
+                                        <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.2 text-[10px] font-bold text-amber-700">
+                                          <SlidersHorizontal className="h-2.5 w-2.5" /> เลือกเส้น/ขนาด
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
 
                                 <div className="flex items-center gap-1">
-                                  {inCart ? (
+                                  {inCartCount > 0 ? (
                                     <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground shadow-xs">
-                                      ×{inCart.qty}
+                                      ×{inCartCount}
                                     </span>
                                   ) : (
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground">
@@ -1107,34 +1229,58 @@ export default function StaffPage() {
                     </button>
                   </div>
 
-                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                    {posCart.map((c) => (
-                      <div key={c.menuItem.id} className="flex items-center justify-between text-xs">
-                        <span className="truncate font-semibold text-card-foreground">
-                          {c.menuItem.name} × {c.qty}
-                        </span>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-bold text-primary">{c.menuItem.price * c.qty}฿</span>
-                          <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
-                            <button
-                              type="button"
-                              onClick={() => handlePosRemoveFromCart(c.menuItem.id)}
-                              className="h-5 w-5 flex items-center justify-center rounded bg-card text-card-foreground"
-                            >
-                              <Minus className="h-3 w-3" />
-                            </button>
-                            <span className="text-[11px] font-bold px-1">{c.qty}</span>
-                            <button
-                              type="button"
-                              onClick={() => handlePosAddToCart(c.menuItem)}
-                              className="h-5 w-5 flex items-center justify-center rounded bg-primary text-primary-foreground"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {posCart.map((c) => {
+                      const optionBadges = Object.values(c.selectedOptions)
+                        .flat()
+                        .filter(Boolean)
+                        .map((o) => o.label)
+
+                      return (
+                        <div key={c.id} className="flex items-start justify-between text-xs border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                          <div className="min-w-0 pr-2">
+                            <p className="font-bold text-card-foreground">
+                              {c.menuItem.name} <span className="text-primary font-bold">× {c.qty}</span>
+                            </p>
+                            {optionBadges.length > 0 && (
+                              <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+                                ↳ {optionBadges.join(', ')}
+                              </p>
+                            )}
+                            {c.instructions && (
+                              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                💬 โน้ต: {c.instructions}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-bold text-primary">{c.unitPrice * c.qty}฿</span>
+                            <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handlePosRemoveFromCart(c.id)}
+                                className="h-5 w-5 flex items-center justify-center rounded bg-card text-card-foreground cursor-pointer"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </button>
+                              <span className="text-[11px] font-bold px-1">{c.qty}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPosCart((prev) =>
+                                    prev.map((item) => (item.id === c.id ? { ...item, qty: item.qty + 1 } : item))
+                                  )
+                                }}
+                                className="h-5 w-5 flex items-center justify-center rounded bg-primary text-primary-foreground cursor-pointer"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -1145,7 +1291,7 @@ export default function StaffPage() {
               <div>
                 <p className="text-[11px] text-muted-foreground">ยอดรวมทั้งหมด</p>
                 <p className="font-display text-xl font-bold text-primary">
-                  {posCart.reduce((sum, c) => sum + c.menuItem.price * c.qty, 0)} บาท
+                  {posCart.reduce((sum, c) => sum + c.unitPrice * c.qty, 0)} บาท
                 </p>
               </div>
 
@@ -1153,7 +1299,7 @@ export default function StaffPage() {
                 <button
                   type="button"
                   onClick={() => setPosModalOpen(false)}
-                  className="rounded-full bg-secondary px-4 py-2.5 text-xs font-bold text-secondary-foreground hover:bg-secondary/80"
+                  className="rounded-full bg-secondary px-4 py-2.5 text-xs font-bold text-secondary-foreground hover:bg-secondary/80 cursor-pointer"
                 >
                   ยกเลิก
                 </button>
@@ -1172,6 +1318,126 @@ export default function StaffPage() {
                       <Check className="h-4 w-4" /> 🚀 ส่งเข้าห้องครัวทันที
                     </>
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🍜 POPUP CUSTOMIZATION MODAL FOR POS DISH OPTIONS */}
+      {customizingItem && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-foreground/60 backdrop-blur-sm">
+          <div className="relative z-10 flex flex-col max-h-[85vh] w-full max-w-md overflow-hidden rounded-3xl bg-card shadow-2xl border border-border">
+            {/* Customizer Header */}
+            <div className="flex items-center justify-between border-b border-border p-4 bg-muted/40">
+              <div className="flex items-center gap-2.5">
+                {customizingItem.image_url ? (
+                  <img src={customizingItem.image_url} alt={customizingItem.name} className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                    <Utensils className="h-5 w-5" />
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-display text-base font-bold text-card-foreground">{customizingItem.name}</h3>
+                  <p className="text-xs text-primary font-bold">{customizingItem.price} บาท (เริ่มต้น)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCustomizingItem(null)}
+                className="rounded-full bg-secondary p-1.5 text-secondary-foreground hover:bg-secondary/80 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Customizer Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {customizingItem.options?.groups?.map((group: any) => (
+                <div key={group.id} className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-card-foreground">
+                      {group.label}
+                      {group.required && <span className="ml-1 text-[11px] font-bold text-destructive">*</span>}
+                    </label>
+                    <span className="text-[10px] text-muted-foreground">
+                      {group.required ? '(จำเป็นต้องเลือก)' : '(เลือกได้)'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.options.map((option: any) => {
+                      const isSelected = customSelected[group.id]?.some((o) => o.id === option.id)
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => {
+                            setCustomSelected((prev) => ({
+                              ...prev,
+                              [group.id]: [option],
+                            }))
+                          }}
+                          className={`rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground border-primary shadow-xs scale-102'
+                              : 'bg-secondary/70 text-card-foreground border-border hover:bg-secondary'
+                          }`}
+                        >
+                          <span>{option.label}</span>
+                          {option.price > 0 && (
+                            <span className={`ml-1 text-[10px] font-bold ${isSelected ? 'text-primary-foreground/90' : 'text-primary'}`}>
+                              +{option.price}฿
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {/* Note / Special Instructions */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-card-foreground block">
+                  📝 รายละเอียดเพิ่มเติม / โน้ต:
+                </label>
+                <input
+                  type="text"
+                  value={customInstructions}
+                  onChange={(e) => setCustomInstructions(e.target.value)}
+                  placeholder="เช่น ไม่ใส่ผัก, ไม่ถั่วงอก, น้ำใส..."
+                  className="w-full rounded-xl border border-border bg-background p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-hidden"
+                />
+              </div>
+            </div>
+
+            {/* Customizer Footer */}
+            <div className="border-t border-border p-4 bg-muted/40 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] text-muted-foreground">ราคารวมรายการนี้</p>
+                <p className="font-display text-lg font-bold text-primary">
+                  {(Number(customizingItem.price) || 0) + optionPrice(customSelected)} บาท
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCustomizingItem(null)}
+                  className="rounded-full bg-secondary px-4 py-2 text-xs font-bold text-secondary-foreground hover:bg-secondary/80 cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  disabled={!hasRequiredOptions(customizingItem as any, customSelected)}
+                  onClick={() => handlePosAddToCart(customizingItem, customSelected, customInstructions)}
+                  className="flex items-center gap-1 rounded-full bg-primary px-5 py-2 text-xs font-bold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" /> เพิ่มลงบิล
                 </button>
               </div>
             </div>
