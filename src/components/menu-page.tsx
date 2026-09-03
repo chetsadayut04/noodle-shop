@@ -261,52 +261,61 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-4xl px-4 sm:px-6 lg:px-8 pb-28">
-      <header className="flex items-start justify-between gap-4 px-5 pb-4 pt-8">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-600/25 bg-gradient-to-r from-amber-500/15 to-orange-500/10 px-3 py-0.5 text-xs font-bold text-amber-900 shadow-xs">
-              🍜 ร้านแม่แต๋
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary shadow-xs">
-              <UtensilsCrossed className="h-3 w-3" /> โต๊ะ {tableId}
-            </span>
-          </div>
-          <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-foreground text-balance">
-            ก๋วยเตี๋ยว &amp; ข้าว
-          </h1>
-          <p className="mt-1.5 text-xs sm:text-sm text-pretty text-muted-foreground leading-relaxed">
-            รสชาติต้นตำรับ เส้นเหนียวนุ่ม น้ำซุปหอมเข้มข้น พร้อมเสิร์ฟความอร่อยถึงโต๊ะคุณ
-          </p>
-        </div>
+      {/* Top Banner / Hero Card */}
+      <header className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-red-900 via-red-800 to-amber-950 p-6 text-white shadow-xl shadow-red-950/20 border border-amber-500/20">
+        {/* Subtle Decorative Background Glow */}
+        <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-amber-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -left-12 -bottom-12 h-44 w-44 rounded-full bg-red-600/30 blur-3xl" />
 
-        <div className="flex items-center gap-2">
-          {userRole && (
-            <div className="flex flex-col gap-1 sm:flex-row">
-              {userRole === 'admin' && (
-                <a
-                  href="/admin"
-                  className="inline-flex items-center gap-1 rounded-2xl bg-primary/10 border border-primary/20 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
-                >
-                  <Shield className="h-3.5 w-3.5" /> Admin
-                </a>
-              )}
-              <a
-                href="/staff"
-                className="inline-flex items-center gap-1 rounded-2xl bg-secondary border border-border px-3 py-2 text-xs font-bold text-secondary-foreground hover:bg-secondary/80 transition-colors"
-              >
-                <UserCheck className="h-3.5 w-3.5" /> Staff
-              </a>
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 border border-amber-300/30 px-3 py-0.5 text-xs font-bold text-amber-200 backdrop-blur-xs">
+                ✨ ร้านเด็ดสูตรต้นตำรับ
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 border border-white/25 px-3 py-0.5 text-xs font-bold text-white shadow-xs">
+                <UtensilsCrossed className="h-3 w-3 text-amber-300" /> โต๊ะ {tableId}
+              </span>
             </div>
-          )}
 
-          <button
-            type="button"
-            onClick={() => setSummaryOpen(true)}
-            aria-label="ดูสรุปรายการอาหารและค่าใช้จ่าย"
-            className="mt-0 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card text-primary shadow-sm border border-border hover:border-primary/40 transition-all active:scale-95"
-          >
-            <Receipt className="h-5 w-5" />
-          </button>
+            <h1 className="font-display text-3xl sm:text-4xl font-black tracking-tight text-white drop-shadow-sm">
+              ร้านแม่แต๋ <span className="text-amber-300 text-2xl sm:text-3xl font-normal">| ก๋วยเตี๋ยว &amp; ข้าว</span>
+            </h1>
+
+            <p className="text-xs sm:text-sm text-amber-100/85 leading-relaxed max-w-xl">
+              สูตรลับน้ำซุปหอมเข้มข้น เส้นเหนียวนุ่ม เนื้อหมูหมักนุ่มละมุน สั่งอาหารส่งตรงถึงห้องครัวได้ทันที
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            {userRole && (
+              <div className="flex gap-1.5">
+                {userRole === 'admin' && (
+                  <a
+                    href="/admin"
+                    className="inline-flex items-center gap-1 rounded-2xl bg-white/15 border border-white/20 px-3 py-2 text-xs font-bold text-white hover:bg-white/25 transition-colors"
+                  >
+                    <Shield className="h-3.5 w-3.5" /> Admin
+                  </a>
+                )}
+                <a
+                  href="/staff"
+                  className="inline-flex items-center gap-1 rounded-2xl bg-amber-400 text-amber-950 px-3.5 py-2 text-xs font-bold shadow-md shadow-amber-400/20 hover:bg-amber-300 transition-colors"
+                >
+                  <UserCheck className="h-3.5 w-3.5" /> Staff
+                </a>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setSummaryOpen(true)}
+              aria-label="ดูสรุปรายการอาหารและค่าใช้จ่าย"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/20 border border-white/30 text-white hover:bg-white/30 transition-all active:scale-95 shadow-xs"
+            >
+              <Receipt className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </header>
 
