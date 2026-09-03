@@ -84,6 +84,7 @@ export default function AdminPage() {
   
   // Selected Menu for Unified Option Editor
   const [selectedMenuId, setSelectedMenuId] = useState<string>('')
+  const [copySourceMenuId, setCopySourceMenuId] = useState<string>('')
 
   // New Table Form
   const [newTableId, setNewTableId] = useState('')
@@ -261,6 +262,226 @@ export default function AdminPage() {
       fetchData()
     } catch (err: any) {
       console.error('Delete group error:', err)
+    }
+  }
+
+  // 1-Click Apply Preset Template
+  const handleApplyPreset = async (presetType: 'noodle' | 'rice' | 'drink' | 'extras_only') => {
+    if (!selectedMenuId) {
+      alert('กรุณาเลือกเมนูก่อนใส่แม่แบบ')
+      return
+    }
+    if (!confirm('ต้องการใส่ชุดตัวเลือกแม่แบบสำหรับเมนูนี้ใช่หรือไม่?')) return
+
+    try {
+      const supabase = createClient()
+
+      let groupsToCreate: { name: string; is_required: boolean; options: { name: string; price: number }[] }[] = []
+
+      if (presetType === 'noodle') {
+        groupsToCreate = [
+          {
+            name: 'เลือกเส้น',
+            is_required: true,
+            options: [
+              { name: 'เส้นเล็ก', price: 0 },
+              { name: 'เส้นใหญ่', price: 0 },
+              { name: 'บะหมี่เหลือง', price: 5 },
+              { name: 'วุ้นเส้น', price: 0 },
+              { name: 'มาม่า', price: 10 },
+            ],
+          },
+          {
+            name: 'เลือกน้ำซุป',
+            is_required: true,
+            options: [
+              { name: 'น้ำตก', price: 0 },
+              { name: 'ต้มยำ', price: 0 },
+              { name: 'น้ำใส', price: 0 },
+              { name: 'แห้ง', price: 0 },
+            ],
+          },
+          {
+            name: 'เลือกเนื้อสัตว์',
+            is_required: true,
+            options: [
+              { name: 'หมูสด/หมูนุ่ม', price: 0 },
+              { name: 'หมูตุ๋น', price: 10 },
+              { name: 'เนื้อวัว', price: 15 },
+              { name: 'ลูกชิ้นปลา', price: 0 },
+              { name: 'รวมมิตรจัดเต็ม', price: 20 },
+            ],
+          },
+          {
+            name: 'เลือกผัก',
+            is_required: false,
+            options: [
+              { name: 'ใส่ผักทุกอย่าง', price: 0 },
+              { name: 'ถั่วงอก', price: 0 },
+              { name: 'ผักบุ้ง', price: 0 },
+              { name: 'ไม่ใส่ผัก', price: 0 },
+            ],
+          },
+          {
+            name: 'เพิ่มของได้ตามใจ',
+            is_required: false,
+            options: [
+              { name: 'ไข่ต้ม', price: 10 },
+              { name: 'เพิ่มเส้น', price: 10 },
+              { name: 'แคบหมู', price: 15 },
+              { name: 'เกี๊ยวทอดกรอบ', price: 10 },
+            ],
+          },
+        ]
+      } else if (presetType === 'rice') {
+        groupsToCreate = [
+          {
+            name: 'ขนาดจาน',
+            is_required: true,
+            options: [
+              { name: 'ธรรมดา', price: 0 },
+              { name: 'พิเศษ', price: 10 },
+            ],
+          },
+          {
+            name: 'ประเภทเนื้อ',
+            is_required: false,
+            options: [
+              { name: 'ไก่ต้ม', price: 0 },
+              { name: 'ไก่ทอด', price: 0 },
+              { name: 'ไก่ผสม (ต้ม+ทอด)', price: 15 },
+            ],
+          },
+          {
+            name: 'เพิ่มของได้ตามใจ',
+            is_required: false,
+            options: [
+              { name: 'เพิ่มข้าวมัน', price: 10 },
+              { name: 'ไข่ต้มยางมะตูม', price: 10 },
+              { name: 'ตับไก่', price: 10 },
+              { name: 'แตงกวาเพิ่ม', price: 0 },
+            ],
+          },
+        ]
+      } else if (presetType === 'drink') {
+        groupsToCreate = [
+          {
+            name: 'ระดับความหวาน',
+            is_required: true,
+            options: [
+              { name: 'หวานปกติ (100%)', price: 0 },
+              { name: 'หวานน้อย (50%)', price: 0 },
+              { name: 'ไม่หวานเลย (0%)', price: 0 },
+            ],
+          },
+          {
+            name: 'ปริมาณน้ำแข็ง',
+            is_required: true,
+            options: [
+              { name: 'น้ำแข็งปกติ', price: 0 },
+              { name: 'น้ำแข็งน้อย', price: 0 },
+              { name: 'ไม่ใส่น้ำแข็ง', price: 0 },
+            ],
+          },
+          {
+            name: 'ท็อปปิ้งเพิ่ม',
+            is_required: false,
+            options: [
+              { name: 'ไข่มุก', price: 10 },
+              { name: 'ว่านหางจระเข้', price: 10 },
+              { name: 'เฉาก๊วย', price: 10 },
+            ],
+          },
+        ]
+      } else if (presetType === 'extras_only') {
+        groupsToCreate = [
+          {
+            name: 'เพิ่มของได้ตามใจ',
+            is_required: false,
+            options: [
+              { name: 'ไข่ต้ม', price: 10 },
+              { name: 'เพิ่มเส้น', price: 10 },
+              { name: 'แคบหมู', price: 15 },
+              { name: 'เกี๊ยวกรอบ', price: 10 },
+            ],
+          },
+        ]
+      }
+
+      for (const grp of groupsToCreate) {
+        const { data: groupData, error: gErr } = await supabase
+          .from('option_groups')
+          .insert({
+            menu_item_id: selectedMenuId,
+            name: grp.name,
+            is_required: grp.is_required,
+          })
+          .select()
+          .single()
+
+        if (gErr) throw gErr
+
+        if (groupData && grp.options.length > 0) {
+          const optionsRows = grp.options.map((opt) => ({
+            group_id: groupData.id,
+            name: opt.name,
+            extra_price: opt.price,
+          }))
+
+          const { error: oErr } = await supabase.from('options').insert(optionsRows)
+          if (oErr) throw oErr
+        }
+      }
+
+      fetchData()
+    } catch (err: any) {
+      console.error('Apply preset error:', err)
+      alert(err.message || 'เกิดข้อผิดพลาดในการใส่ชุดตัวเลือกแม่แบบ')
+    }
+  }
+
+  // Copy options from another menu
+  const handleCopyFromMenu = async (sourceMenuId: string) => {
+    if (!sourceMenuId || !selectedMenuId || sourceMenuId === selectedMenuId) return
+    if (!confirm('ต้องการคัดลอกตัวเลือกทั้งหมดจากเมนูที่เลือกมาใส่เมนูนี้ใช่หรือไม่?')) return
+
+    try {
+      const supabase = createClient()
+      const sourceGroups = optionGroups.filter((g) => g.menu_item_id === sourceMenuId)
+      if (sourceGroups.length === 0) {
+        alert('เมนูต้นทางไม่มีตัวเลือกให้คัดลอก')
+        return
+      }
+
+      for (const grp of sourceGroups) {
+        const { data: newGrp, error: gErr } = await supabase
+          .from('option_groups')
+          .insert({
+            menu_item_id: selectedMenuId,
+            name: grp.name,
+            is_required: grp.is_required,
+          })
+          .select()
+          .single()
+
+        if (gErr) throw gErr
+
+        const srcOptions = optionsList.filter((o) => o.group_id === grp.id)
+        if (newGrp && srcOptions.length > 0) {
+          const optRows = srcOptions.map((o) => ({
+            group_id: newGrp.id,
+            name: o.name,
+            extra_price: o.extra_price,
+          }))
+          const { error: oErr } = await supabase.from('options').insert(optRows)
+          if (oErr) throw oErr
+        }
+      }
+
+      fetchData()
+    } catch (err: any) {
+      console.error('Copy options error:', err)
+      alert(err.message || 'เกิดข้อผิดพลาดในการคัดลอกตัวเลือก')
     }
   }
 
@@ -803,7 +1024,7 @@ export default function AdminPage() {
             <Sliders className="h-6 w-6 text-primary" />
             <div>
               <h2 className="font-display text-xl font-bold text-card-foreground">จัดการตัวเลือกปรับแต่งอาหาร (Menu Options)</h2>
-              <p className="text-xs text-muted-foreground">เลือกเมนู แล้วเพิ่มกลุ่มตัวเลือกและตัวเลือกย่อยในที่เดียว</p>
+              <p className="text-xs text-muted-foreground">เลือกเมนู แล้วเพิ่มกลุ่มตัวเลือกหรือกดใส่ชุดสำเร็จรูปได้ทันที</p>
             </div>
           </div>
 
@@ -824,12 +1045,86 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* ⚡ 1-CLICK PRESET TEMPLATES & COPY ACTION BAR */}
+        <div className="mt-4 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-amber-900 flex items-center gap-1">
+                ⚡ ใส่ชุดตัวเลือกสำเร็จรูปใน 1 คลิก (ไม่ต้องพิมพ์เอง):
+              </span>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleApplyPreset('noodle')}
+                  className="rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-amber-700 transition-colors cursor-pointer"
+                  title="ใส่ชุด: เลือกเส้น, เลือกน้ำ, เนื้อสัตว์, ผัก, ท็อปปิ้ง"
+                >
+                  🍜 แม่แบบก๋วยเตี๋ยวครบชุด
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyPreset('rice')}
+                  className="rounded-xl bg-orange-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-orange-700 transition-colors cursor-pointer"
+                  title="ใส่ชุด: ขนาดจาน, ประเภทไก่, เครื่องเคียง"
+                >
+                  🍚 แม่แบบเมนูข้าว/จานเดียว
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyPreset('drink')}
+                  className="rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-teal-700 transition-colors cursor-pointer"
+                  title="ใส่ชุด: ระดับความหวาน, น้ำแข็ง, ท็อปปิ้ง"
+                >
+                  🥤 แม่แบบเครื่องดื่ม/ชานม
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyPreset('extras_only')}
+                  className="rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition-colors cursor-pointer"
+                  title="ใส่เฉพาะกลุ่ม: เพิ่มของได้ตามใจ (ไข่ต้ม, แคบหมู, เกี๊ยวกรอบ)"
+                >
+                  🥓 +เฉพาะกลุ่ม "เพิ่มของได้ตามใจ"
+                </button>
+              </div>
+            </div>
+
+            {/* Copy from existing menu */}
+            <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-amber-500/20">
+              <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">📋 คัดลอกจาก:</span>
+              <select
+                value={copySourceMenuId}
+                onChange={(e) => setCopySourceMenuId(e.target.value)}
+                className="rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs text-foreground focus:outline-none"
+              >
+                <option value="">-- เลือกเมนูต้นทาง --</option>
+                {menuItems
+                  .filter((m) => m.id !== selectedMenuId)
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => handleCopyFromMenu(copySourceMenuId)}
+                disabled={!copySourceMenuId}
+                className="rounded-xl bg-secondary border border-border px-3 py-1.5 text-xs font-bold text-secondary-foreground hover:bg-secondary/80 disabled:opacity-40 cursor-pointer"
+              >
+                คัดลอกมาใส่เมนูนี้
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Display Group Cards for selectedMenuId */}
         <div className="mt-6 space-y-6">
           {currentMenuGroups.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-8 text-center">
               <p className="text-sm font-semibold text-muted-foreground">ยังไม่มีกลุ่มตัวเลือกสำหรับเมนูนี้</p>
-              <p className="mt-1 text-xs text-muted-foreground">สร้างกลุ่มตัวเลือกแรกได้จากฟอร์มด้านล่าง (เช่น "เลือกเส้น" หรือ "ระดับความเผ็ด")</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                กดเลือก <strong>"⚡ ใส่ชุดตัวเลือกสำเร็จรูป"</strong> ด้านบน หรือสร้างกลุ่มตัวเลือกเองจากฟอร์มด้านล่าง
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -890,7 +1185,7 @@ export default function AdminPage() {
                       <div className="flex gap-1.5">
                         <input
                           type="text"
-                          placeholder="ชื่อตัวเลือก (เช่น เส้นเล็ก)"
+                          placeholder="ชื่อตัวเลือก (เช่น เส้นเล็ก / ไข่ต้ม)"
                           value={inlineOptionNames[group.id] || ''}
                           onChange={(e) => setInlineOptionNames({ ...inlineOptionNames, [group.id]: e.target.value })}
                           className="flex-1 rounded-xl border border-border bg-card p-2 text-xs text-foreground focus:border-primary focus:outline-none"
@@ -898,17 +1193,17 @@ export default function AdminPage() {
                         <input
                           type="number"
                           min="0"
-                          placeholder="ราคาเพิ่ม"
+                          placeholder="ราคาเพิ่ม (0=ฟรี)"
                           value={inlineOptionPrices[group.id] || '0'}
                           onChange={(e) => setInlineOptionPrices({ ...inlineOptionPrices, [group.id]: e.target.value })}
-                          className="w-20 rounded-xl border border-border bg-card p-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                          className="w-24 rounded-xl border border-border bg-card p-2 text-xs text-foreground focus:border-primary focus:outline-none"
                         />
                         <button
                           type="button"
                           onClick={() => handleAddOptionInline(group.id)}
-                          className="rounded-xl bg-primary px-3 py-2 font-display text-xs font-bold text-primary-foreground shadow-xs active:scale-95"
+                          className="rounded-xl bg-primary px-3 py-2 font-display text-xs font-bold text-primary-foreground shadow-xs hover:bg-primary/90 active:scale-95"
                         >
-                          <Plus className="h-4 w-4" />
+                          <Plus className="h-4 w-4" /> เพิ่ม
                         </button>
                       </div>
                     </div>
@@ -918,10 +1213,65 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* Add New Group Form at Bottom */}
+          {/* Add New Group Form at Bottom with Quick Suggestion Chips */}
           <form onSubmit={handleAddOptionGroup} className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
-            <h3 className="font-display text-sm font-bold text-primary">+ สร้างกลุ่มตัวเลือกใหม่สำหรับเมนูนี้</h3>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <h3 className="font-display text-sm font-bold text-primary">+ สร้างกลุ่มตัวเลือกใหม่ด้วยตนเอง</h3>
+            
+            {/* Quick Suggestion Chips */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-medium text-muted-foreground">หรือกดเลือกชื่อหัวข้อยอดนิยม:</span>
+              <button
+                type="button"
+                onClick={() => { setNewGroupName('เลือกเส้น'); setNewGroupRequired(true) }}
+                className="rounded-full bg-card border border-border px-2.5 py-1 text-[11px] font-medium text-card-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+              >
+                🍜 เลือกเส้น
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNewGroupName('เลือกน้ำซุป'); setNewGroupRequired(true) }}
+                className="rounded-full bg-card border border-border px-2.5 py-1 text-[11px] font-medium text-card-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+              >
+                🍲 เลือกน้ำซุป
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNewGroupName('เลือกเนื้อสัตว์'); setNewGroupRequired(true) }}
+                className="rounded-full bg-card border border-border px-2.5 py-1 text-[11px] font-medium text-card-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+              >
+                🥩 เลือกเนื้อสัตว์
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNewGroupName('ระดับความเผ็ด'); setNewGroupRequired(false) }}
+                className="rounded-full bg-card border border-border px-2.5 py-1 text-[11px] font-medium text-card-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+              >
+                🌶️ ระดับความเผ็ด
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNewGroupName('เพิ่มของได้ตามใจ'); setNewGroupRequired(false) }}
+                className="rounded-full bg-card border border-border px-2.5 py-1 text-[11px] font-medium text-card-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+              >
+                🥓 เพิ่มของได้ตามใจ
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNewGroupName('ระดับความหวาน'); setNewGroupRequired(true) }}
+                className="rounded-full bg-card border border-border px-2.5 py-1 text-[11px] font-medium text-card-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+              >
+                🍯 ระดับความหวาน
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNewGroupName('ปริมาณน้ำแข็ง'); setNewGroupRequired(true) }}
+                className="rounded-full bg-card border border-border px-2.5 py-1 text-[11px] font-medium text-card-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+              >
+                🧊 ปริมาณน้ำแข็ง
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 pt-1">
               <input
                 type="text"
                 required
@@ -942,7 +1292,7 @@ export default function AdminPage() {
             </div>
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-1 rounded-full bg-primary py-2.5 font-display text-xs font-bold text-primary-foreground shadow-xs"
+              className="flex w-full items-center justify-center gap-1 rounded-full bg-primary py-2.5 font-display text-xs font-bold text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-4 w-4" /> สร้างกลุ่มตัวเลือกสำหรับเมนูนี้
             </button>
