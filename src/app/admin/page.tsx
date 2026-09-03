@@ -85,6 +85,7 @@ type Order = {
   status: string
   total: number
   created_at: string
+  payment_method?: string | null
   payments?: PaymentRecord[]
 }
 
@@ -739,6 +740,8 @@ export default function AdminPage() {
 
   const isTransferOrder = (o: Order) => {
     if (o.payments?.some((p) => !!p.slip_url)) return true
+    if (o.payment_method === 'cash') return false
+    if (o.payment_method === 'promptpay') return true
     const payment = o.payments?.[0]
     if (payment) {
       if (payment.payment_method === 'cash' || payment.method === 'cash') return false

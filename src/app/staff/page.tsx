@@ -53,6 +53,7 @@ type Order = {
   status: 'pending' | 'preparing' | 'served' | 'paid'
   total: number
   created_at: string
+  payment_method?: string | null
   order_items: OrderItem[]
   payments?: Payment[]
 }
@@ -231,14 +232,30 @@ export default function StaffPage() {
       if (error) throw error
 
       if (nextStatus === 'paid') {
-        await supabase
+        const { data: existingPayment } = await supabase
           .from('payments')
-          .update({
+          .select('id')
+          .eq('order_id', orderId)
+          .maybeSingle()
+
+        if (existingPayment) {
+          await supabase
+            .from('payments')
+            .update({
+              status: 'paid',
+              payment_method: paymentMethod,
+              method: paymentMethod,
+            })
+            .eq('order_id', orderId)
+        } else {
+          await supabase.from('payments').insert({
+            order_id: orderId,
             status: 'paid',
             payment_method: paymentMethod,
             method: paymentMethod,
+            amount: 0,
           })
-          .eq('order_id', orderId)
+        }
       }
 
       setOrders((prev) =>
@@ -247,12 +264,24 @@ export default function StaffPage() {
             ? {
                 ...o,
                 status: nextStatus,
-                payments: o.payments?.map((p) => ({
-                  ...p,
-                  status: 'paid',
-                  payment_method: paymentMethod,
-                  method: paymentMethod,
-                })),
+                payment_method: paymentMethod,
+                payments:
+                  o.payments && o.payments.length > 0
+                    ? o.payments.map((p) => ({
+                        ...p,
+                        status: 'paid',
+                        payment_method: paymentMethod,
+                        method: paymentMethod,
+                      }))
+                    : [
+                        {
+                          id: 'temp-' + Date.now(),
+                          slip_url: null,
+                          status: 'paid',
+                          payment_method: paymentMethod,
+                          method: paymentMethod,
+                        },
+                      ],
               }
             : o
         )
@@ -570,7 +599,15 @@ export default function StaffPage() {
                     ) : (
                       <div className="mt-2 text-center text-[11px] font-bold text-emerald-700 bg-emerald-500/10 py-1.5 rounded-xl flex items-center justify-center gap-1">
                         <Check className="h-3.5 w-3.5" />
-                        <span>ชำระเงินเรียบร้อย ({order.payments?.[0]?.payment_method === 'cash' || order.payments?.[0]?.method === 'cash' ? '💵 เงินสด' : '📱 โอนเงิน'})</span>
+                        <span>
+                          ชำระเงินเรียบร้อย (
+                          {order.payment_method === 'cash' ||
+                          order.payments?.[0]?.payment_method === 'cash' ||
+                          order.payments?.[0]?.method === 'cash'
+                            ? '💵 เงินสด'
+                            : '📱 โอนเงิน'}
+                          )
+                        </span>
                       </div>
                     )}
                   </div>
