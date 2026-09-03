@@ -67,58 +67,80 @@ type MenuItem = {
   category_id: string
 }
 
+let sharedAudioCtx: AudioContext | null = null
+
+const getAudioContext = () => {
+  if (typeof window === 'undefined') return null
+  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+  if (!AudioCtx) return null
+  if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+    sharedAudioCtx = new AudioCtx()
+  }
+  if (sharedAudioCtx.state === 'suspended') {
+    sharedAudioCtx.resume()
+  }
+  return sharedAudioCtx
+}
+
+// Global Thai voice cache for instant zero-delay playback
+let cachedThaiVoice: SpeechSynthesisVoice | null = null
+
+const updateThaiVoiceCache = () => {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+  const voices = window.speechSynthesis.getVoices()
+  const thai = voices.find(
+    (v) =>
+      v.lang.includes('th') ||
+      v.lang === 'th-TH' ||
+      v.name.includes('Thai') ||
+      v.name.includes('Kanya') ||
+      v.name.includes('Narisa')
+  )
+  if (thai) cachedThaiVoice = thai
+}
+
 const playOrderSound = (tableId?: string) => {
-  // 1. Play dual-tone chime bell (Ding-dong) first
+  // 1. Play snappy, crisp high-pitch chime (Ding! ~0.15s)
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
-    if (AudioCtx) {
-      const ctx = new AudioCtx()
-      if (ctx.state === 'suspended') ctx.resume()
-
+    const ctx = getAudioContext()
+    if (ctx) {
       const now = ctx.currentTime
-      const osc1 = ctx.createOscillator()
-      const gain1 = ctx.createGain()
-      osc1.type = 'sine'
-      osc1.frequency.setValueAtTime(659.25, now) // E5
-      gain1.gain.setValueAtTime(0.35, now)
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
-      osc1.connect(gain1)
-      gain1.connect(ctx.destination)
-      osc1.start(now)
-      osc1.stop(now + 0.35)
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
 
-      const osc2 = ctx.createOscillator()
-      const gain2 = ctx.createGain()
-      osc2.type = 'sine'
-      osc2.frequency.setValueAtTime(880, now + 0.12) // A5
-      gain2.gain.setValueAtTime(0.4, now + 0.12)
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
-      osc2.connect(gain2)
-      gain2.connect(ctx.destination)
-      osc2.start(now + 0.12)
-      osc2.stop(now + 0.5)
+      osc.type = 'sine'
+      // Pleasant bright bell note: 1046.5Hz (C6) with quick crystal decay
+      osc.frequency.setValueAtTime(1046.5, now)
+      gain.gain.setValueAtTime(0.45, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.18)
     }
   } catch (err) {
     console.error('Play chime sound error:', err)
   }
 
-  // 2. Play Thai voice announcement after chime finishes (Delayed 400ms so it does not overlap)
+  // 2. Play Thai Siri announcement immediately after ding (only 80ms delay!)
   setTimeout(() => {
     try {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
+        window.speechSynthesis.cancel() // Cancel any previous speech queue immediately
         const cleanTable = tableId ? tableId.replace(/^t/i, '') : ''
         const message = cleanTable ? `มีออเดอร์ใหม่ โต๊ะ ${cleanTable} ค่ะ` : `มีออเดอร์ใหม่ เข้ามาค่ะ`
         const utterance = new SpeechSynthesisUtterance(message)
         utterance.lang = 'th-TH'
-        utterance.rate = 0.88 // จังหวะพูดชัดเจน นุ่มนวล ไม่พูดเร็วเกินไป
-        utterance.pitch = 1.0 // โทนเสียงพูดปกติ ชัดถ้อยชัดคำ
+        utterance.rate = 1.08 // จังหวะพูดกระฉับกระเฉง ชัดถ้อยชัดคำ สดใสและเป็นธรรมชาติ
+        utterance.pitch = 1.02 // เสียงสดใส ชัดเจน
         utterance.volume = 1.0
 
-        const voices = window.speechSynthesis.getVoices()
-        const thaiVoice = voices.find((v) => v.lang.includes('th') || v.lang === 'th-TH' || v.name.includes('Thai'))
-        if (thaiVoice) {
-          utterance.voice = thaiVoice
+        if (!cachedThaiVoice) {
+          updateThaiVoiceCache()
+        }
+        if (cachedThaiVoice) {
+          utterance.voice = cachedThaiVoice
         }
 
         window.speechSynthesis.speak(utterance)
@@ -126,7 +148,7 @@ const playOrderSound = (tableId?: string) => {
     } catch (err) {
       console.error('Speech synthesis error:', err)
     }
-  }, 400)
+  }, 80)
 }
 
 export default function StaffPage() {
@@ -138,6 +160,28 @@ export default function StaffPage() {
   const [stockModalOpen, setStockModalOpen] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const prevPendingCountRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    // Warm up speech voices & unlock AudioContext on first user interaction
+    updateThaiVoiceCache()
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = updateThaiVoiceCache
+    }
+
+    const unlockAudio = () => {
+      getAudioContext()
+      updateThaiVoiceCache()
+      window.removeEventListener('click', unlockAudio)
+      window.removeEventListener('touchstart', unlockAudio)
+    }
+    window.addEventListener('click', unlockAudio, { once: true })
+    window.addEventListener('touchstart', unlockAudio, { once: true })
+
+    return () => {
+      window.removeEventListener('click', unlockAudio)
+      window.removeEventListener('touchstart', unlockAudio)
+    }
+  }, [])
   const router = useRouter()
 
   const fetchOrdersAndMenu = async () => {
