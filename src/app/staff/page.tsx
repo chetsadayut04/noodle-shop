@@ -31,6 +31,7 @@ import {
   Store,
   Moon,
   Loader2,
+  Search,
 } from 'lucide-react'
 
 type OrderItemOption = {
@@ -171,6 +172,7 @@ export default function StaffPage() {
   const [posModalOpen, setPosModalOpen] = useState(false)
   const [posTableId, setPosTableId] = useState('1')
   const [posCategory, setPosCategory] = useState('all')
+  const [posSearch, setPosSearch] = useState('')
   const [posCart, setPosCart] = useState<{ menuItem: MenuItem; qty: number; note: string }[]>([])
   const [posSubmitting, setPosSubmitting] = useState(false)
   const prevPendingCountRef = useRef<number | null>(null)
@@ -955,53 +957,148 @@ export default function StaffPage() {
                 </div>
               </div>
 
+              {/* Search & Category Filter Section */}
+              <div className="space-y-2 pt-1 border-t border-border">
+                {/* Instant Search Bar */}
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={posSearch}
+                    onChange={(e) => setPosSearch(e.target.value)}
+                    placeholder="🔍 ค้นหาเมนู เช่น เนื้อ, ต้มยำ, ข้าวมันไก่, ชาเย็น..."
+                    className="w-full rounded-2xl border border-border bg-background py-2.5 pl-9 pr-8 text-xs font-semibold placeholder:text-muted-foreground focus:border-primary focus:outline-hidden"
+                  />
+                  {posSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setPosSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Category Quick Filter Tabs */}
+                <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                  {[
+                    { id: 'all', name: '✨ ทั้งหมด' },
+                    { id: 'noodles', name: '🍜 ก๋วยเตี๋ยว' },
+                    { id: 'khaomangai', name: '🍚 ข้าวมันไก่' },
+                    { id: 'drinks', name: '🥤 เครื่องดื่ม' },
+                  ].map((cat) => {
+                    const isActive = posCategory === cat.id
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setPosCategory(cat.id)}
+                        className={`shrink-0 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-xs scale-102'
+                            : 'bg-secondary/80 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
               {/* Menu List */}
               <div>
-                <label className="text-xs font-bold text-muted-foreground mb-1.5 block">🍜 แตะเลือกเมนูเพื่อเพิ่มลงบิล:</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {menuItems
-                    .filter((m) => m.is_available)
-                    .map((item) => {
-                      const inCart = posCart.find((c) => c.menuItem.id === item.id)
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => handlePosAddToCart(item)}
-                          className={`flex items-center justify-between rounded-2xl border p-2.5 transition-all cursor-pointer active:scale-98 ${
-                            inCart
-                              ? 'border-primary/50 bg-primary/5'
-                              : 'border-border bg-card hover:bg-secondary/40'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            {item.image_url ? (
-                              <img src={item.image_url} alt={item.name} className="h-11 w-11 shrink-0 rounded-xl object-cover" />
-                            ) : (
-                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
-                                <Utensils className="h-5 w-5" />
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <p className="truncate text-xs font-bold text-card-foreground">{item.name}</p>
-                              <p className="text-xs font-bold text-primary">{item.price} บาท</p>
-                            </div>
-                          </div>
+                {(() => {
+                  const categoryOrder: Record<string, number> = {
+                    noodles: 1,
+                    khaomangai: 2,
+                    drinks: 3,
+                  }
 
-                          <div className="flex items-center gap-1">
-                            {inCart ? (
-                              <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground shadow-xs">
-                                ×{inCart.qty}
-                              </span>
-                            ) : (
-                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground">
-                                <Plus className="h-3.5 w-3.5" />
-                              </span>
-                            )}
-                          </div>
+                  const filteredItems = menuItems
+                    .filter((m) => m.is_available)
+                    .filter((m) => posCategory === 'all' || m.category_id === posCategory)
+                    .filter((m) => !posSearch.trim() || m.name.toLowerCase().includes(posSearch.trim().toLowerCase()))
+                    .sort((a, b) => {
+                      const orderA = categoryOrder[a.category_id] ?? 99
+                      const orderB = categoryOrder[b.category_id] ?? 99
+                      if (orderA !== orderB) return orderA - orderB
+                      return a.name.localeCompare(b.name, 'th')
+                    })
+
+                  return (
+                    <>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-muted-foreground block">
+                          🍜 แตะเลือกเมนู ({filteredItems.length} รายการ):
+                        </label>
+                        {posSearch && (
+                          <span className="text-[11px] text-primary font-medium">ผลการค้นหา "{posSearch}"</span>
+                        )}
+                      </div>
+
+                      {filteredItems.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-border py-8 text-center text-muted-foreground">
+                          <p className="text-xs">ไม่พบเมนูที่ตรงกับคำค้นหา</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPosSearch('')
+                              setPosCategory('all')
+                            }}
+                            className="mt-2 text-xs font-bold text-primary hover:underline cursor-pointer"
+                          >
+                            ดูเมนูทั้งหมด
+                          </button>
                         </div>
-                      )
-                    })}
-                </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {filteredItems.map((item) => {
+                            const inCart = posCart.find((c) => c.menuItem.id === item.id)
+                            return (
+                              <div
+                                key={item.id}
+                                onClick={() => handlePosAddToCart(item)}
+                                className={`flex items-center justify-between rounded-2xl border p-2.5 transition-all cursor-pointer active:scale-98 ${
+                                  inCart
+                                    ? 'border-primary/50 bg-primary/5 shadow-xs'
+                                    : 'border-border bg-card hover:bg-secondary/40'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  {item.image_url ? (
+                                    <img src={item.image_url} alt={item.name} className="h-11 w-11 shrink-0 rounded-xl object-cover" />
+                                  ) : (
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                                      <Utensils className="h-5 w-5" />
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="truncate text-xs font-bold text-card-foreground">{item.name}</p>
+                                    <p className="text-xs font-bold text-primary">{item.price} บาท</p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                  {inCart ? (
+                                    <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground shadow-xs">
+                                      ×{inCart.qty}
+                                    </span>
+                                  ) : (
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground">
+                                      <Plus className="h-3.5 w-3.5" />
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
 
               {/* Live Cart in Modal */}
