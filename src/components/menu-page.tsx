@@ -351,23 +351,21 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-center">
-            {userRole && (
-              <div className="flex gap-1.5">
-                {userRole === 'admin' && (
-                  <a
-                    href="/admin"
-                    className="inline-flex items-center gap-1 rounded-2xl bg-white/15 border border-white/20 px-3 py-2 text-xs font-bold text-white hover:bg-white/25 transition-colors"
-                  >
-                    <Shield className="h-3.5 w-3.5" /> Admin
-                  </a>
-                )}
-                <a
-                  href="/staff"
-                  className="inline-flex items-center gap-1 rounded-2xl bg-amber-400 text-amber-950 px-3.5 py-2 text-xs font-bold shadow-md shadow-amber-400/20 hover:bg-amber-300 transition-colors"
-                >
-                  <UserCheck className="h-3.5 w-3.5" /> Staff
-                </a>
-              </div>
+            <a
+              href="/staff"
+              className="inline-flex items-center gap-1.5 rounded-2xl bg-amber-400 text-amber-950 px-3.5 py-2 text-xs font-bold shadow-md shadow-amber-400/20 hover:bg-amber-300 transition-colors"
+            >
+              <UserCheck className="h-3.5 w-3.5" />
+              <span>{userRole ? 'Staff / POS' : 'Staff / POS 👩‍🍳'}</span>
+            </a>
+
+            {userRole === 'admin' && (
+              <a
+                href="/admin"
+                className="inline-flex items-center gap-1 rounded-2xl bg-white/15 border border-white/20 px-3 py-2 text-xs font-bold text-white hover:bg-white/25 transition-colors"
+              >
+                <Shield className="h-3.5 w-3.5" /> Admin
+              </a>
             )}
 
             <button
