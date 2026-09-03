@@ -118,12 +118,24 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
       }
     })
 
-    // Fetch live menu items, option_groups, and options from Supabase
+    // Fetch live menu items, option_groups, options, and sales stats from Supabase
     async function fetchMenuItemsAndOptions() {
       try {
         const { data: items } = await supabase.from('menu_items').select('*')
         const { data: dbGroups } = await supabase.from('option_groups').select('*')
         const { data: dbOptions } = await supabase.from('options').select('*')
+        const { data: orderItemsData } = await supabase.from('order_items').select('menu_item_id, name, qty')
+
+        // 📊 Calculate live sales count for each menu item from actual orders
+        const salesCountMap: Record<string, number> = {}
+        if (orderItemsData && orderItemsData.length > 0) {
+          for (const oi of orderItemsData) {
+            const key = oi.menu_item_id || oi.name
+            if (key) {
+              salesCountMap[key] = (salesCountMap[key] || 0) + (Number(oi.qty) || 1)
+            }
+          }
+        }
 
         if (items && items.length > 0) {
           const map: Record<string, boolean> = {}
@@ -152,8 +164,29 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
             }
           }
 
+          // 🏆 Find top sellers if orders exist in DB
+          const rankedItems = [...items]
+            .map((i) => ({ id: i.id, count: salesCountMap[i.id] || salesCountMap[i.name] || 0 }))
+            .filter((x) => x.count > 0)
+            .sort((a, b) => b.count - a.count)
+
+          const top1Id = rankedItems[0]?.id
+          const top2Id = rankedItems[1]?.id
+          const top3Id = rankedItems[2]?.id
+
           const dynamicMenuItems: MenuItem[] = items.map((d) => {
             const staticMatch = staticMenuItems.find((m) => m.id === d.id)
+
+            // ⚡ Dynamic Auto Best Seller Badge
+            let autoBadge = d.badge || staticMatch?.badge
+            if (rankedItems.length > 0) {
+              if (d.id === top1Id) {
+                autoBadge = '🔥 ขายดีอันดับ 1'
+              } else if (d.id === top2Id || d.id === top3Id) {
+                autoBadge = '🔥 ขายดี'
+              }
+            }
+
             return {
               id: d.id,
               name: d.name,
@@ -161,14 +194,14 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
               price: Number(d.price),
               description: d.description || staticMatch?.description || 'เมนูอร่อยจากทางร้าน',
               image: d.image_url || staticMatch?.image || '/food/nam-tok.png',
-              badge: d.badge || staticMatch?.badge,
+              badge: autoBadge,
               options: buildOptions(d.id, staticMatch?.options),
             }
           })
 
           setDbMenuItems(dynamicMenuItems)
         } else {
-          // 🛡️ When DB is empty, use all 31 authentic store items from static menu
+          // 🛡️ When DB is empty, use all authentic store items from static menu
           setDbMenuItems(staticMenuItems)
         }
       } catch (err) {
