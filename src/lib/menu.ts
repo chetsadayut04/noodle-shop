@@ -32,7 +32,7 @@ export type SelectedOptions = Record<string, MenuOption[]>
 
 export const categories: Category[] = [
   { id: 'noodles', label: '🍜 เมนูเส้น' },
-  { id: 'side_dishes', label: '🍢 ทานเล่น / เพิ่มเติม' },
+  { id: 'khaomangai', label: '🍚 เมนูข้าวมันไก่' },
   { id: 'drinks', label: '🥤 เครื่องดื่ม' },
 ]
 
@@ -198,6 +198,40 @@ const noodleOptions50 = {
   ],
 }
 
+// ตัวเลือกสำหรับข้าวมันไก่ (ธรรมดา/พิเศษ +10฿)
+const khaoManGaiOptions = {
+  groups: [
+    {
+      id: 'size',
+      label: 'ขนาดจาน',
+      required: true,
+      options: [
+        { id: 'regular', label: 'ธรรมดา', price: 0 },
+        { id: 'special', label: 'พิเศษ (+10฿)', price: 10 },
+      ],
+    },
+    {
+      id: 'meat_pref',
+      label: 'เนื้อไก่',
+      options: [
+        { id: 'all_meat', label: 'เนื้อผสมหนัง (ปกติ)', price: 0 },
+        { id: 'no_skin', label: 'ไม่เอาหนัง (เนื้อล้วน)', price: 0 },
+        { id: 'extra_skin', label: 'เน้นหนัง', price: 0 },
+      ],
+    },
+    {
+      id: 'side_add',
+      label: 'เครื่องเคียงเพิ่ม',
+      options: [
+        { id: 'liver', label: 'เพิ่มตับไก่ (+10฿)', price: 10 },
+        { id: 'extra_rice', label: 'เพิ่มข้าวมัน (+10฿)', price: 10 },
+        { id: 'egg', label: 'ไข่ต้มยางมะตูม (+7฿)', price: 7 },
+        { id: 'soup_extra', label: 'น้ำซุปมะนาวดอง (+0฿)', price: 0 },
+      ],
+    },
+  ],
+}
+
 // ตัวเลือกเครื่องดื่ม (แก้วเล็ก 25฿ / แก้วใหญ่ 35฿)
 const drinkOptions = {
   groups: [
@@ -358,38 +392,55 @@ export const menuItems: MenuItem[] = [
     options: noodleOptions50,
   },
 
-  // ================= 🍢 หมวดทานเล่น / เพิ่มเติม =================
+  // ================= 🍚 หมวดเมนูข้าวมันไก่ =================
   {
-    id: 'look-chin-moo',
-    name: 'ลูกชิ้นหมูลวก (5 ลูก)',
-    description: 'ลูกชิ้นหมูแท้เด้งนุ่ม ลวกโรยกระเทียมเจียวหอมๆ พร้อมน้ำจิ้ม',
-    price: 20,
-    image: '/food/ba-mee.png',
-    category: 'side_dishes',
-  },
-  {
-    id: 'look-chin-nua',
-    name: 'ลูกชิ้นเนื้อลวก (5 ลูก)',
-    description: 'ลูกชิ้นเนื้อเด้งสู้ฟัน รสกลมกล่อม ลวกสดใหม่',
-    price: 20,
-    image: '/food/nam-tok.png',
-    category: 'side_dishes',
-  },
-  {
-    id: 'kai-tom',
-    name: 'ไข่ต้ม',
-    description: 'ไข่ต้มยางมะตูม เพิ่มความอร่อยในชามก๋วยเตี๋ยว',
-    price: 7,
-    image: '/food/tom-yum.png',
-    category: 'side_dishes',
-  },
-  {
-    id: 'khao-plao',
-    name: 'ข้าวเปล่า',
-    description: 'ข้าวสวยร้อนๆ ทานคู่กับซุปดูกหรือเกาเหลา',
-    price: 5,
+    id: 'kmg-tom',
+    name: 'ข้าวมันไก่ต้ม',
+    description: 'ไก่ต้มนุ่มฉ่ำ ข้าวมันหอมเรียงเม็ด น้ำจิ้มเต้าเจี้ยวขิงรสเด็ด',
+    price: 50,
     image: '/food/khao-man-gai.png',
-    category: 'side_dishes',
+    category: 'khaomangai',
+    badge: '👑 เมนูเด็ด',
+    options: khaoManGaiOptions,
+  },
+  {
+    id: 'kmg-tod',
+    name: 'ข้าวมันไก่ทอด',
+    description: 'ไก่ทอดสีทองกรอบนอกนุ่มใน ข้าวมันหอม น้ำจิ้มไก่หวานแซ่บ',
+    price: 55,
+    image: '/food/khao-man-gai-tod.png',
+    category: 'khaomangai',
+    badge: '⭐ กรอบอร่อย',
+    options: khaoManGaiOptions,
+  },
+  {
+    id: 'kmg-ruam',
+    name: 'ข้าวมันไก่รวม (ต้ม+ทอด)',
+    description: 'ไก่ต้มและไก่ทอดจัดเต็มในจานเดียว อิ่มคุ้มจุใจ',
+    price: 65,
+    image: '/food/khao-man-gai-ruam.png',
+    category: 'khaomangai',
+    badge: '🔥 ขายดีอันดับ 1',
+    options: khaoManGaiOptions,
+  },
+  {
+    id: 'kmg-yang',
+    name: 'ข้าวมันไก่ย่าง',
+    description: 'ไก่ย่างหมักสมุนไพรหอมกรุ่น เนื้อนุ่มฉ่ำ ข้าวมันร้อนๆ',
+    price: 55,
+    image: '/food/khao-man-gai.png',
+    category: 'khaomangai',
+    options: khaoManGaiOptions,
+  },
+  {
+    id: 'kmg-zaab',
+    name: 'ข้าวมันไก่แซ่บ',
+    description: 'ไก่ทอดกรอบคลุกเคล้าเครื่องลาบแซ่บจี๊ด เผ็ดเปรี้ยวลงตัว',
+    price: 55,
+    image: '/food/khao-man-gai-tod.png',
+    category: 'khaomangai',
+    badge: '🌶️ แซ่บจี๊ด',
+    options: khaoManGaiOptions,
   },
 
   // ================= 🥤 หมวดเครื่องดื่ม =================
@@ -516,7 +567,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 'cha-khiao-manao',
     name: 'ชาเขียวมะนาว',
-    description: 'ชาเขียวหอมสดชื่นผสมมะนาวแท้ ดับกระหายสดชื่นสุดๆ',
+    description: 'ชาเขียวหอมสดชื่นผสมมะนาวแท้ ดับกระหายสดชื่น',
     price: 25,
     image: '/food/nam-manao.png',
     category: 'drinks',

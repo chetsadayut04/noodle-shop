@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- 🍜 ร้านแม่แต๋ (MaeTae Noodle Shop) - COMPLETE DATABASE & AUTHENTIC MENU SEED
 -- ==============================================================================
--- ข้อมูลเมนูจริงตรงตามป้ายร้านแม่แต๋ 100% (เมนูเส้น, เครื่องเคียง, เครื่องดื่ม)
+-- หมวดหมู่: 🍜 เมนูเส้น, 🍚 เมนูข้าวมันไก่, 🥤 เครื่องดื่ม
 -- ==============================================================================
 
 -- 1. ล้างตารางเดิมทั้งหมดเพื่อจัดระเบียบโครงสร้างใหม่ (Clean Reset)
@@ -21,16 +21,16 @@ DROP TABLE IF EXISTS tables CASCADE;
 
 -- 2.1 ตารางโต๊ะอาหาร (Tables)
 CREATE TABLE tables (
-    id TEXT PRIMARY KEY,                       -- 'T1', 'T2', '1', '2'
-    name TEXT NOT NULL,                        -- 'โต๊ะ 1', 'โต๊ะ 2'
-    is_active BOOLEAN DEFAULT TRUE,            -- สถานะเปิด/ปิด โต๊ะ
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 2.2 ตารางหมวดหมู่อาหาร (Categories)
 CREATE TABLE categories (
-    id TEXT PRIMARY KEY,                       -- 'noodles', 'side_dishes', 'drinks'
-    name TEXT NOT NULL,                        -- 'เมนูเส้น', 'ทานเล่น / เพิ่มเติม', 'เครื่องดื่ม'
+    id TEXT PRIMARY KEY,                       -- 'noodles', 'khaomangai', 'drinks'
+    name TEXT NOT NULL,
     sort_order INT DEFAULT 0
 );
 
@@ -70,7 +70,7 @@ CREATE TABLE options (
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     table_id TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',    -- 'pending', 'preparing', 'served', 'paid'
+    status TEXT NOT NULL DEFAULT 'pending',
     total NUMERIC NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -139,7 +139,7 @@ CREATE POLICY "Public full access to order_item_options" ON order_item_options F
 CREATE POLICY "Public full access to payments" ON payments FOR ALL USING (true) WITH CHECK (true);
 
 -- ==============================================================================
--- 5. ข้อมูลเริ่มต้นร้านแม่แต๋ (Seed Actual Menu from Store Board)
+-- 5. ข้อมูลเริ่มต้นร้านแม่แต๋ (Seed Actual Menu)
 -- ==============================================================================
 
 -- 5.1 โต๊ะ 1 - 10
@@ -158,10 +158,10 @@ INSERT INTO tables (id, name, is_active) VALUES
 -- 5.2 หมวดหมู่เมนู
 INSERT INTO categories (id, name, sort_order) VALUES
 ('noodles', '🍜 เมนูเส้น', 1),
-('side_dishes', '🍢 ทานเล่น / เพิ่มเติม', 2),
+('khaomangai', '🍚 เมนูข้าวมันไก่', 2),
 ('drinks', '🥤 เครื่องดื่ม', 3);
 
--- 5.3 รายการอาหารจริงจากป้ายร้านแม่แต๋
+-- 5.3 รายการอาหารจริงร้านแม่แต๋
 INSERT INTO menu_items (id, category_id, name, description, price, image_url, badge, sort_order) VALUES
 -- 🍜 เมนูเส้น
 ('nam-sai-moo', 'noodles', 'น้ำใสหมู', 'น้ำซุปใสกลมกล่อม หมูชิ้นนุ่ม ลูกชิ้น', 35, '/food/ba-mee.png', '⭐ ยอดนิยม', 1),
@@ -178,27 +178,28 @@ INSERT INTO menu_items (id, category_id, name, description, price, image_url, ba
 ('tiew-nua-toon', 'noodles', 'เตี๋ยวเนื้อตุ๋น', 'เนื้อตุ๋นยาจีนเปื่อยนุ่มละลายในปาก หอมกลิ่นเครื่องเทศ', 40, '/food/nam-tok.png', '✨ NEW มาใหม่', 12),
 ('tom-yum-nua-toon', 'noodles', 'ต้มยำเนื้อตุ๋น', 'เนื้อตุ๋นเปื่อยนุ่มปรุงรสต้มยำรสแซ่บ แซ่บถึงเนื้อ', 50, '/food/tom-yum.png', '✨ NEW มาใหม่', 13),
 
--- 🍢 ทานเล่น / เพิ่มเติม
-('look-chin-moo', 'side_dishes', 'ลูกชิ้นหมูลวก (5 ลูก)', 'ลูกชิ้นหมูแท้เด้งนุ่ม ลวกโรยกระเทียมเจียวหอมๆ', 20, '/food/ba-mee.png', NULL, 14),
-('look-chin-nua', 'side_dishes', 'ลูกชิ้นเนื้อลวก (5 ลูก)', 'ลูกชิ้นเนื้อเด้งสู้ฟัน รสกลมกล่อม ลวกสดใหม่', 20, '/food/nam-tok.png', NULL, 15),
-('kai-tom', 'side_dishes', 'ไข่ต้ม', 'ไข่ต้มยางมะตูม เพิ่มความอร่อยในชาม', 7, '/food/tom-yum.png', NULL, 16),
-('khao-plao', 'side_dishes', 'ข้าวเปล่า', 'ข้าวสวยร้อนๆ ทานคู่กับซุปดูกหรือเกาเหลา', 5, '/food/khao-man-gai.png', NULL, 17),
+-- 🍚 เมนูข้าวมันไก่
+('kmg-tom', 'khaomangai', 'ข้าวมันไก่ต้ม', 'ไก่ต้มนุ่มฉ่ำ ข้าวมันหอมเรียงเม็ด น้ำจิ้มเต้าเจี้ยวขิงรสเด็ด', 50, '/food/khao-man-gai.png', '👑 เมนูเด็ด', 14),
+('kmg-tod', 'khaomangai', 'ข้าวมันไก่ทอด', 'ไก่ทอดสีทองกรอบนอกนุ่มใน ข้าวมันหอม น้ำจิ้มไก่หวานแซ่บ', 55, '/food/khao-man-gai-tod.png', '⭐ กรอบอร่อย', 15),
+('kmg-ruam', 'khaomangai', 'ข้าวมันไก่รวม (ต้ม+ทอด)', 'ไก่ต้มและไก่ทอดจัดเต็มในจานเดียว อิ่มคุ้มจุใจ', 65, '/food/khao-man-gai-ruam.png', '🔥 ขายดีอันดับ 1', 16),
+('kmg-yang', 'khaomangai', 'ข้าวมันไก่ย่าง', 'ไก่ย่างหมักสมุนไพรหอมกรุ่น เนื้อนุ่มฉ่ำ ข้าวมันร้อนๆ', 55, '/food/khao-man-gai.png', NULL, 17),
+('kmg-zaab', 'khaomangai', 'ข้าวมันไก่แซ่บ', 'ไก่ทอดกรอบคลุกเคล้าเครื่องลาบแซ่บจี๊ด เผ็ดเปรี้ยวลงตัว', 55, '/food/khao-man-gai-tod.png', '🌶️ แซ่บจี๊ด', 18),
 
 -- 🥤 เครื่องดื่ม (เริ่มต้น 25 บาท)
-('kafe-boran', 'drinks', 'กาแฟโบราณ', 'กาแฟโบราณหอมกรุ่น เข้มข้นหวานมันแบบดั้งเดิม', 25, '/food/cha-thai.png', NULL, 18),
-('kafe-yen', 'drinks', 'กาแฟเย็น', 'กาแฟเย็นสดชื่น หอมเข้ม กลมกล่อม', 25, '/food/cha-thai.png', NULL, 19),
-('o-liang', 'drinks', 'โอเลี้ยง', 'โอเลี้ยงดำเข้ม หวานสดชื่น ดับกระหายคลายร้อน', 25, '/food/cha-thai.png', NULL, 20),
-('cha-yen', 'drinks', 'ชาเย็น (ชาไทย)', 'ชาไทยสีส้มเข้มข้น หอมใบชา หวานมันกลมกล่อม', 25, '/food/cha-thai.png', '🔥 ขายดี', 21),
-('cha-khiao', 'drinks', 'ชาเขียวเย็น', 'ชาเขียวนมกลิ่นหอมละมุน หวานมันชื่นใจ', 25, '/food/cha-thai.png', NULL, 22),
-('cha-dam', 'drinks', 'ชาดำเย็น', 'ชาดำรสเข้ม หวานเย็นสดชื่น ชุ่มคอ', 25, '/food/cha-thai.png', NULL, 23),
-('cha-manao', 'drinks', 'ชามะนาว', 'ชามะนาวรสเปรี้ยวอมหวาน สดชื่นคลายร้อน', 25, '/food/nam-manao.png', '⭐ สดชื่น', 24),
-('nom-sod', 'drinks', 'นมสดเย็น', 'นมสดหอมมัน หวานกำลังดี นุ่มละมุน', 25, '/food/cha-thai.png', NULL, 25),
-('nom-chompoo', 'drinks', 'นมชมพู (นมเย็น)', 'นมชมพูหวานหอม กลิ่นสละ นุ่มนวลสดชื่น', 25, '/food/cha-thai.png', NULL, 26),
-('ovaltine', 'drinks', 'โอวัลตินเย็น', 'โอวัลตินมอลต์เข้มข้น หวานมันกลมกล่อม อร่อยถูกใจ', 25, '/food/cha-thai.png', NULL, 27),
-('cocoa', 'drinks', 'โกโก้เย็น', 'โกโก้เข้มข้น รสชาติหวานมัน ช็อคโกแลตแท้', 25, '/food/cha-thai.png', '🔥 เข้มข้น', 28),
-('cantaloupe', 'drinks', 'นมแคนตาลูป', 'หอมกลิ่นแคนตาลูป สดชื่น หวานมันลงตัว', 25, '/food/cha-thai.png', NULL, 29),
-('nam-daeng-manao', 'drinks', 'น้ำแดงมะนาว', 'น้ำหวานเฮลบลูบอยผสมมะนาวแท้ เปรี้ยวหวานซาบซ่า', 25, '/food/nam-manao.png', NULL, 30),
-('cha-khiao-manao', 'drinks', 'ชาเขียวมะนาว', 'ชาเขียวหอมสดชื่นผสมมะนาวแท้ ดับกระหายสดชื่น', 25, '/food/nam-manao.png', NULL, 31);
+('kafe-boran', 'drinks', 'กาแฟโบราณ', 'กาแฟโบราณหอมกรุ่น เข้มข้นหวานมันแบบดั้งเดิม', 25, '/food/cha-thai.png', NULL, 19),
+('kafe-yen', 'drinks', 'กาแฟเย็น', 'กาแฟเย็นสดชื่น หอมเข้ม กลมกล่อม', 25, '/food/cha-thai.png', NULL, 20),
+('o-liang', 'drinks', 'โอเลี้ยง', 'โอเลี้ยงดำเข้ม หวานสดชื่น ดับกระหายคลายร้อน', 25, '/food/cha-thai.png', NULL, 21),
+('cha-yen', 'drinks', 'ชาเย็น (ชาไทย)', 'ชาไทยสีส้มเข้มข้น หอมใบชา หวานมันกลมกล่อม', 25, '/food/cha-thai.png', '🔥 ขายดี', 22),
+('cha-khiao', 'drinks', 'ชาเขียวเย็น', 'ชาเขียวนมกลิ่นหอมละมุน หวานมันชื่นใจ', 25, '/food/cha-thai.png', NULL, 23),
+('cha-dam', 'drinks', 'ชาดำเย็น', 'ชาดำรสเข้ม หวานเย็นสดชื่น ชุ่มคอ', 25, '/food/cha-thai.png', NULL, 24),
+('cha-manao', 'drinks', 'ชามะนาว', 'ชามะนาวรสเปรี้ยวอมหวาน สดชื่นคลายร้อน', 25, '/food/nam-manao.png', '⭐ สดชื่น', 25),
+('nom-sod', 'drinks', 'นมสดเย็น', 'นมสดหอมมัน หวานกำลังดี นุ่มละมุน', 25, '/food/cha-thai.png', NULL, 26),
+('nom-chompoo', 'drinks', 'นมชมพู (นมเย็น)', 'นมชมพูหวานหอม กลิ่นสละ นุ่มนวลสดชื่น', 25, '/food/cha-thai.png', NULL, 27),
+('ovaltine', 'drinks', 'โอวัลตินเย็น', 'โอวัลตินมอลต์เข้มข้น หวานมันกลมกล่อม อร่อยถูกใจ', 25, '/food/cha-thai.png', NULL, 28),
+('cocoa', 'drinks', 'โกโก้เย็น', 'โกโก้เข้มข้น รสชาติหวานมัน ช็อคโกแลตแท้', 25, '/food/cha-thai.png', '🔥 เข้มข้น', 29),
+('cantaloupe', 'drinks', 'นมแคนตาลูป', 'หอมกลิ่นแคนตาลูป สดชื่น หวานมันลงตัว', 25, '/food/cha-thai.png', NULL, 30),
+('nam-daeng-manao', 'drinks', 'น้ำแดงมะนาว', 'น้ำหวานเฮลบลูบอยผสมมะนาวแท้ เปรี้ยวหวานซาบซ่า', 25, '/food/nam-manao.png', NULL, 31),
+('cha-khiao-manao', 'drinks', 'ชาเขียวมะนาว', 'ชาเขียวหอมสดชื่นผสมมะนาวแท้ ดับกระหายสดชื่น', 25, '/food/nam-manao.png', NULL, 32);
 
 -- 5.4 Storage Bucket & Policies สำหรับสลิปโอนเงิน
 INSERT INTO storage.buckets (id, name, public) 

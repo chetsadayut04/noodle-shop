@@ -243,7 +243,7 @@ export default function AdminPage() {
       // 1. Ensure categories
       await supabase.from('categories').upsert([
         { id: 'noodles', name: '🍜 เมนูเส้น', sort_order: 1 },
-        { id: 'side_dishes', name: '🍢 ทานเล่น / เพิ่มเติม', sort_order: 2 },
+        { id: 'khaomangai', name: '🍚 เมนูข้าวมันไก่', sort_order: 2 },
         { id: 'drinks', name: '🥤 เครื่องดื่ม', sort_order: 3 },
       ])
 
@@ -1056,7 +1056,7 @@ export default function AdminPage() {
                 className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
               >
                 <option value="noodles">🍜 เมนูเส้น (noodles)</option>
-                <option value="side_dishes">🍢 ทานเล่น / เพิ่มเติม (side_dishes)</option>
+                <option value="khaomangai">🍚 เมนูข้าวมันไก่ (khaomangai)</option>
                 <option value="drinks">🥤 เครื่องดื่ม (drinks)</option>
               </select>
               <input
