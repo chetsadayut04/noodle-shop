@@ -244,14 +244,6 @@ export default function StaffPage() {
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
       if (itemsErr) throw itemsErr
 
-      // 3. Insert payment record (Cash)
-      await supabase.from('payments').insert({
-        order_id: newOrder.id,
-        payment_method: 'cash',
-        amount: total,
-        status: 'pending',
-      })
-
       // Announce sound and refresh
       playOrderSound(posTableId === 'takeaway' ? 'กลับบ้าน' : posTableId)
       setPosCart([])

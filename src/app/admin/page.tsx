@@ -742,12 +742,9 @@ export default function AdminPage() {
 
   const isTransferOrder = (o: Order) => {
     if (o.payments?.some((p) => !!p.slip_url)) return true
-    if (o.payment_method === 'cash') return false
-    const payment = o.payments?.[0]
-    if (payment?.payment_method === 'cash' || payment?.method === 'cash') return false
     if (o.payment_method === 'promptpay') return true
-    if (payment?.payment_method === 'promptpay' || payment?.method === 'promptpay') return true
-    return true
+    if (o.payments?.some((p) => p.payment_method === 'promptpay' || p.method === 'promptpay')) return true
+    return false
   }
 
   const isOrderPaid = (o: Order) => {
@@ -1087,7 +1084,11 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="py-2.5">
-                            {isTransfer ? (
+                            {!isPaid ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-secondary/80 border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                ⏳ รอชำระเงิน
+                              </span>
+                            ) : isTransfer ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/15 px-2 py-0.5 text-[10px] font-bold text-teal-700">
                                 📱 โอนเงิน
                               </span>
