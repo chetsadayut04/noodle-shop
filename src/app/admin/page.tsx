@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-import { menuItems as defaultShopMenuItems } from '@/lib/menu'
 import {
   DollarSign,
   ShoppingBag,
@@ -229,85 +228,6 @@ export default function AdminPage() {
       fetchData()
     } catch (err: any) {
       console.error('Delete menu item error:', err)
-    }
-  }
-
-  const [seedingMenu, setSeedingMenu] = useState(false)
-
-  const handleSeedRealMenuToDB = async () => {
-    if (!confirm('ต้องการบันทึกเมนูจริงของร้านแม่แต๋ทั้ง 31 รายการ (พร้อมตัวเลือกและโต๊ะ 1-10) เข้าสู่ Supabase ใช่หรือไม่?')) return
-    setSeedingMenu(true)
-    try {
-      const supabase = createClient()
-
-      // 1. Ensure categories
-      await supabase.from('categories').upsert([
-        { id: 'noodles', name: '🍜 เมนูเส้น', sort_order: 1 },
-        { id: 'khaomangai', name: '🍚 เมนูข้าวมันไก่', sort_order: 2 },
-        { id: 'drinks', name: '🥤 เครื่องดื่ม', sort_order: 3 },
-      ])
-
-      // 2. Ensure tables T1 - T10
-      const defaultTables = Array.from({ length: 10 }, (_, i) => ({
-        id: `T${i + 1}`,
-        name: `โต๊ะ ${i + 1}`,
-        is_active: true,
-      }))
-      await supabase.from('tables').upsert(defaultTables)
-
-      // 3. Upsert menu items
-      const menuRows = defaultShopMenuItems.map((item, idx) => ({
-        id: item.id,
-        category_id: item.category,
-        name: item.name,
-        description: item.description,
-        price: item.price,
-        image_url: item.image,
-        badge: item.badge || null,
-        is_available: true,
-        sort_order: idx + 1,
-      }))
-      const { error: mErr } = await supabase.from('menu_items').upsert(menuRows)
-      if (mErr) throw mErr
-
-      // 4. Delete old option groups first to prevent any duplicate option groups
-      for (const item of defaultShopMenuItems) {
-        await supabase.from('option_groups').delete().eq('menu_item_id', item.id)
-      }
-
-      // 5. Insert clean option groups & options
-      for (const item of defaultShopMenuItems) {
-        if (item.options?.groups && item.options.groups.length > 0) {
-          for (const grp of item.options.groups) {
-            const { data: grpData } = await supabase
-              .from('option_groups')
-              .insert({
-                menu_item_id: item.id,
-                name: grp.label,
-                is_required: grp.required || false,
-              })
-              .select()
-              .single()
-
-            if (grpData && grp.options && grp.options.length > 0) {
-              const optRows = grp.options.map((opt) => ({
-                group_id: grpData.id,
-                name: opt.label,
-                extra_price: opt.price || 0,
-              }))
-              await supabase.from('options').insert(optRows)
-            }
-          }
-        }
-      }
-
-      alert('บันทึกเมนูร้านแม่แต๋ 31 รายการและโต๊ะ 1-10 เข้าสู่ Supabase สำเร็จเรียบร้อยแล้ว!')
-      fetchData()
-    } catch (err: any) {
-      console.error('Seed menu error:', err)
-      alert(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')
-    } finally {
-      setSeedingMenu(false)
     }
   }
 
@@ -1024,27 +944,10 @@ export default function AdminPage() {
 
         {/* Manage Menu Items */}
         <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-            <div className="flex items-center gap-2">
-              <Utensils className="h-5 w-5 text-primary" />
-              <h2 className="font-display text-lg font-bold text-card-foreground">จัดการเมนูอาหาร (menu_items)</h2>
-            </div>
-            <button
-              type="button"
-              onClick={handleSeedRealMenuToDB}
-              disabled={seedingMenu}
-              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              {seedingMenu ? '⏳ กำลังบันทึก...' : '📥 ซิงค์เมนูร้านแม่แต๋ 31 เมนูเข้า Supabase'}
-            </button>
+          <div className="flex items-center gap-2 border-b border-border pb-3">
+            <Utensils className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-lg font-bold text-card-foreground">จัดการเมนูอาหาร (menu_items)</h2>
           </div>
-
-          {menuItems.length === 0 && (
-            <div className="mt-4 rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/10 p-4 text-center">
-              <p className="text-xs font-bold text-amber-900">⚡ ยังไม่มีรายการอาหารในฐานข้อมูล Supabase</p>
-              <p className="text-[11px] text-amber-800/80 mt-1">กดปุ่มสีเขียว <strong>"📥 ซิงค์เมนูร้านแม่แต๋ 31 เมนูเข้า Supabase"</strong> ด้านบน เพื่อโหลดเมนูและตัวเลือกครบชุดเข้าสู่ฐานข้อมูลได้ทันที</p>
-            </div>
-          )}
 
           <form onSubmit={handleAddMenuItem} className="mt-4 space-y-3">
             <div className="grid grid-cols-2 gap-2">
