@@ -63,7 +63,7 @@ type MenuItem = {
 }
 
 const playOrderSound = (tableId?: string) => {
-  // 1. Play dual-tone chime bell (Ding-dong)
+  // 1. Play dual-tone chime bell (Ding-dong) first
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
     if (AudioCtx) {
@@ -75,43 +75,53 @@ const playOrderSound = (tableId?: string) => {
       const gain1 = ctx.createGain()
       osc1.type = 'sine'
       osc1.frequency.setValueAtTime(659.25, now) // E5
-      gain1.gain.setValueAtTime(0.4, now)
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.4)
+      gain1.gain.setValueAtTime(0.35, now)
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
       osc1.connect(gain1)
       gain1.connect(ctx.destination)
       osc1.start(now)
-      osc1.stop(now + 0.4)
+      osc1.stop(now + 0.35)
 
       const osc2 = ctx.createOscillator()
       const gain2 = ctx.createGain()
       osc2.type = 'sine'
-      osc2.frequency.setValueAtTime(880, now + 0.1) // A5
-      gain2.gain.setValueAtTime(0.5, now + 0.1)
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6)
+      osc2.frequency.setValueAtTime(880, now + 0.12) // A5
+      gain2.gain.setValueAtTime(0.4, now + 0.12)
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
       osc2.connect(gain2)
       gain2.connect(ctx.destination)
-      osc2.start(now + 0.1)
-      osc2.stop(now + 0.6)
+      osc2.start(now + 0.12)
+      osc2.stop(now + 0.5)
     }
   } catch (err) {
     console.error('Play chime sound error:', err)
   }
 
-  // 2. Play Thai voice announcement: "มีออเดอร์เข้าแล้วค่ะ"
-  try {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-      const message = tableId ? `มีออเดอร์เข้าแล้วค่ะ โต๊ะ ${tableId}` : `มีออเดอร์เข้าแล้วค่ะ`
-      const utterance = new SpeechSynthesisUtterance(message)
-      utterance.lang = 'th-TH'
-      utterance.rate = 1.05
-      utterance.pitch = 1.1
-      utterance.volume = 1.0
-      window.speechSynthesis.speak(utterance)
+  // 2. Play Thai voice announcement after chime finishes (Delayed 400ms so it does not overlap)
+  setTimeout(() => {
+    try {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+        const cleanTable = tableId ? tableId.replace(/^t/i, '') : ''
+        const message = cleanTable ? `มีออเดอร์ใหม่ โต๊ะ ${cleanTable} ค่ะ` : `มีออเดอร์ใหม่ เข้ามาค่ะ`
+        const utterance = new SpeechSynthesisUtterance(message)
+        utterance.lang = 'th-TH'
+        utterance.rate = 0.88 // จังหวะพูดชัดเจน นุ่มนวล ไม่พูดเร็วเกินไป
+        utterance.pitch = 1.0 // โทนเสียงพูดปกติ ชัดถ้อยชัดคำ
+        utterance.volume = 1.0
+
+        const voices = window.speechSynthesis.getVoices()
+        const thaiVoice = voices.find((v) => v.lang.includes('th') || v.lang === 'th-TH' || v.name.includes('Thai'))
+        if (thaiVoice) {
+          utterance.voice = thaiVoice
+        }
+
+        window.speechSynthesis.speak(utterance)
+      }
+    } catch (err) {
+      console.error('Speech synthesis error:', err)
     }
-  } catch (err) {
-    console.error('Speech synthesis error:', err)
-  }
+  }, 400)
 }
 
 export default function StaffPage() {
