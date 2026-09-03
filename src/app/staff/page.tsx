@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import {
@@ -18,9 +18,6 @@ import {
   X,
   ArrowRight,
   Check,
-  Volume2,
-  VolumeX,
-  Bell,
 } from 'lucide-react'
 
 type OrderItemOption = {
@@ -49,7 +46,7 @@ type Order = {
   status: 'pending' | 'preparing' | 'served' | 'paid'
   total: number
   created_at: string
-  order_items: OrderItem[]
+  order_items?: OrderItem[]
   payments?: Payment[]
 }
 
@@ -61,42 +58,6 @@ type MenuItem = {
   is_available: boolean
 }
 
-const playOrderSound = () => {
-  try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
-    if (!AudioCtx) return
-    const ctx = new AudioCtx()
-    if (ctx.state === 'suspended') {
-      ctx.resume()
-    }
-
-    const now = ctx.currentTime
-    const osc1 = ctx.createOscillator()
-    const gain1 = ctx.createGain()
-    osc1.type = 'sine'
-    osc1.frequency.setValueAtTime(659.25, now) // E5
-    gain1.gain.setValueAtTime(0.4, now)
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
-    osc1.connect(gain1)
-    gain1.connect(ctx.destination)
-    osc1.start(now)
-    osc1.stop(now + 0.5)
-
-    const osc2 = ctx.createOscillator()
-    const gain2 = ctx.createGain()
-    osc2.type = 'sine'
-    osc2.frequency.setValueAtTime(880, now + 0.12) // A5
-    gain2.gain.setValueAtTime(0.5, now + 0.12)
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.8)
-    osc2.connect(gain2)
-    gain2.connect(ctx.destination)
-    osc2.start(now + 0.12)
-    osc2.stop(now + 0.8)
-  } catch (err) {
-    console.error('Play chime sound error:', err)
-  }
-}
-
 export default function StaffPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
@@ -104,8 +65,6 @@ export default function StaffPage() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
   const [stockModalOpen, setStockModalOpen] = useState(false)
-  const [soundEnabled, setSoundEnabled] = useState(true)
-  const prevPendingCountRef = useRef<number | null>(null)
   const router = useRouter()
 
   const fetchOrdersAndMenu = async () => {
@@ -133,15 +92,7 @@ export default function StaffPage() {
         .order('created_at', { ascending: false })
 
       if (orderError) throw orderError
-      const currentOrders = orderData || []
-      setOrders(currentOrders)
-
-      // Check if new pending orders arrived
-      const pendingCount = currentOrders.filter((o) => o.status === 'pending').length
-      if (prevPendingCountRef.current !== null && pendingCount > prevPendingCountRef.current && soundEnabled) {
-        playOrderSound()
-      }
-      prevPendingCountRef.current = pendingCount
+      setOrders(orderData || [])
 
       // Fetch menu items
       const { data: menuData } = await supabase
@@ -159,26 +110,8 @@ export default function StaffPage() {
   useEffect(() => {
     fetchOrdersAndMenu()
     const interval = setInterval(fetchOrdersAndMenu, 8000)
-
-    // Supabase Realtime Subscription for Instant Sound & Updates
-    const supabase = createClient()
-    const channel = supabase
-      .channel('realtime-staff-orders')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'orders' },
-        () => {
-          if (soundEnabled) playOrderSound()
-          fetchOrdersAndMenu()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      clearInterval(interval)
-      supabase.removeChannel(channel)
-    }
-  }, [soundEnabled])
+    return () => clearInterval(interval)
+  }, [])
 
   const updateOrderStatus = async (orderId: string, nextStatus: Order['status']) => {
     try {
@@ -246,32 +179,6 @@ export default function StaffPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Sound Notification Toggle & Test */}
-          <div className="flex items-center gap-1 rounded-full bg-secondary/80 p-0.5 border border-border">
-            <button
-              type="button"
-              onClick={() => setSoundEnabled(!soundEnabled)}
-              className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                soundEnabled
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              title={soundEnabled ? 'ปิดเสียงแจ้งเตือน' : 'เปิดเสียงแจ้งเตือน'}
-            >
-              {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-              <span>{soundEnabled ? 'เสียงเตือน: เปิด' : 'เสียงเตือน: ปิด'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={playOrderSound}
-              className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-card hover:text-foreground transition-colors"
-              title="ทดสอบเสียงกระดิ่ง"
-            >
-              <Bell className="h-3.5 w-3.5" />
-              <span>ทดสอบ</span>
-            </button>
-          </div>
-
           {/* Stock Toggle Modal Trigger */}
           <button
             type="button"
@@ -364,26 +271,9 @@ export default function StaffPage() {
                             <span>{item.price * item.qty}฿</span>
                           </div>
                           {item.order_item_options && item.order_item_options.length > 0 && (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {item.order_item_options.map((opt) => {
-                                const isTakeaway = opt.name.includes('ใส่ถุงกลับบ้าน')
-                                const isNote = opt.name.includes('📝')
-                                return (
-                                  <span
-                                    key={opt.id}
-                                    className={`inline-block rounded-md px-2 py-0.5 text-[11px] font-medium ${
-                                      isTakeaway
-                                        ? 'bg-amber-500/20 text-amber-800 font-bold border border-amber-500/30'
-                                        : isNote
-                                        ? 'bg-blue-500/15 text-blue-800 font-bold border border-blue-500/20'
-                                        : 'bg-secondary text-secondary-foreground'
-                                    }`}
-                                  >
-                                    {opt.name}
-                                  </span>
-                                )
-                              })}
-                            </div>
+                            <p className="mt-0.5 text-xs text-muted-foreground bg-secondary/50 rounded-lg p-1.5">
+                              {item.order_item_options.map((opt) => opt.name).join(' · ')}
+                            </p>
                           )}
                         </li>
                       ))}

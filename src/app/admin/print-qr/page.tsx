@@ -32,7 +32,7 @@ export default function PrintQRPage() {
           .order('id')
 
         if (tables) {
-          const origin = typeof window !== 'undefined' ? window.location.origin : 'https://noodle-shop-eight.vercel.app'
+          const origin = typeof window !== 'undefined' ? window.location.origin : 'https://maetae-noodle.vercel.app'
           
           const cardPromises = tables.map(async (t) => {
             const tableUrl = `${origin}/table/${t.id}`

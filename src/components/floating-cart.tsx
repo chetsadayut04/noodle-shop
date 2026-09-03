@@ -4,13 +4,13 @@ import { useState } from 'react'
 import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
 import { optionPrice, optionSummary, optionsKey, type MenuItem, type SelectedOptions } from '@/lib/menu'
 
-export type CartLine = { item: MenuItem; selected: SelectedOptions; instructions?: string; packaging?: 'dine-in' | 'takeaway'; quantity: number }
+export type CartLine = { item: MenuItem; selected: SelectedOptions; instructions?: string; quantity: number }
 
 type FloatingCartProps = {
   lines: CartLine[]
   totalCount: number
   totalPrice: number
-  onAdd: (item: MenuItem, selected: SelectedOptions, instructions?: string, packaging?: 'dine-in' | 'takeaway') => void
+  onAdd: (item: MenuItem, selected: SelectedOptions, instructions?: string) => void
   onRemove: (line: CartLine) => void
   onClear: () => void
   onCheckout: () => void
@@ -28,7 +28,7 @@ export function FloatingCart({ lines, totalCount, totalPrice, onAdd, onRemove, o
           <h2 className="font-display text-xl font-bold text-card-foreground">ตะกร้าของคุณ</h2>
           <button type="button" onClick={() => setOpen(false)} className="rounded-full bg-secondary p-2" aria-label="ปิด"><X className="h-5 w-5" /></button>
         </div>
-        <ul className="max-h-[48vh] divide-y divide-border overflow-y-auto px-5">{lines.map((line) => <li key={`${line.item.id}-${optionsKey(line.selected, line.instructions, line.packaging)}`} className="flex items-center gap-3 py-3"><img src={line.item.image} alt={line.item.name} className="h-14 w-14 shrink-0 rounded-xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate font-medium text-card-foreground">{line.item.name}</p>{optionSummary(line.selected, line.instructions, line.packaging) && <p className="line-clamp-2 text-xs text-muted-foreground">{optionSummary(line.selected, line.instructions, line.packaging)}</p>}<p className="text-sm text-primary">{line.item.price + optionPrice(line.selected)} บาท</p></div><div className="flex items-center gap-2 rounded-full bg-secondary p-1"><button type="button" onClick={() => onRemove(line)} className="flex h-7 w-7 items-center justify-center rounded-full bg-card text-secondary-foreground" aria-label={`ลด ${line.item.name}`}><Minus className="h-3.5 w-3.5" /></button><span className="min-w-4 text-center font-display font-bold text-secondary-foreground">{line.quantity}</span><button type="button" onClick={() => onAdd(line.item, line.selected, line.instructions, line.packaging)} className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-label={`เพิ่ม ${line.item.name}`}><Plus className="h-3.5 w-3.5" /></button></div></li>)}</ul>
+        <ul className="max-h-[48vh] divide-y divide-border overflow-y-auto px-5">{lines.map((line) => <li key={`${line.item.id}-${optionsKey(line.selected, line.instructions)}`} className="flex items-center gap-3 py-3"><img src={line.item.image} alt={line.item.name} className="h-14 w-14 shrink-0 rounded-xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate font-medium text-card-foreground">{line.item.name}</p>{optionSummary(line.selected, line.instructions) && <p className="line-clamp-2 text-xs text-muted-foreground">{optionSummary(line.selected, line.instructions)}</p>}<p className="text-sm text-primary">{line.item.price + optionPrice(line.selected)} บาท</p></div><div className="flex items-center gap-2 rounded-full bg-secondary p-1"><button type="button" onClick={() => onRemove(line)} className="flex h-7 w-7 items-center justify-center rounded-full bg-card text-secondary-foreground" aria-label={`ลด ${line.item.name}`}><Minus className="h-3.5 w-3.5" /></button><span className="min-w-4 text-center font-display font-bold text-secondary-foreground">{line.quantity}</span><button type="button" onClick={() => onAdd(line.item, line.selected, line.instructions)} className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-label={`เพิ่ม ${line.item.name}`}><Plus className="h-3.5 w-3.5" /></button></div></li>)}</ul>
         <div className="space-y-3 border-t border-border px-5 py-4"><div className="flex items-center justify-between"><span className="text-muted-foreground">รวมทั้งหมด</span><span className="font-display text-2xl font-bold text-primary">{totalPrice} บาท</span></div><div className="flex gap-2"><button type="button" onClick={onClear} className="flex items-center justify-center gap-2 rounded-full bg-secondary px-4 py-3 text-sm font-semibold text-secondary-foreground"><Trash2 className="h-4 w-4" />ล้าง</button><button type="button" onClick={() => { setOpen(false); onCheckout() }} className="flex-1 rounded-full bg-primary py-3 font-display font-semibold text-primary-foreground">สั่งอาหาร</button></div></div>
       </div>
     </div>}
