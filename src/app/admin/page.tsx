@@ -270,7 +270,12 @@ export default function AdminPage() {
       const { error: mErr } = await supabase.from('menu_items').upsert(menuRows)
       if (mErr) throw mErr
 
-      // 4. Insert option groups & options
+      // 4. Delete old option groups first to prevent any duplicate option groups
+      for (const item of defaultShopMenuItems) {
+        await supabase.from('option_groups').delete().eq('menu_item_id', item.id)
+      }
+
+      // 5. Insert clean option groups & options
       for (const item of defaultShopMenuItems) {
         if (item.options?.groups && item.options.groups.length > 0) {
           for (const grp of item.options.groups) {
@@ -739,8 +744,9 @@ export default function AdminPage() {
     total: chartDataMap[key],
   })).slice(-7)
 
-  // Current groups for selected menu item
-  const currentMenuGroups = optionGroups.filter((g) => g.menu_item_id === selectedMenuId)
+  // Current groups for selected menu item (Deduplicated by name to prevent duplicate cards)
+  const rawMenuGroups = optionGroups.filter((g) => g.menu_item_id === selectedMenuId)
+  const currentMenuGroups = rawMenuGroups.filter((grp, idx, self) => self.findIndex((t) => t.name === grp.name) === idx)
 
   return (
     <main className="min-h-dvh bg-background p-4 sm:p-6 pb-20">

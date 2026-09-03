@@ -134,7 +134,8 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
 
           // Helper to attach dynamic options from Supabase DB
           const buildOptions = (menuItemId: string, staticOpts?: any) => {
-            const itemGroups = dbGroups?.filter((g) => g.menu_item_id === menuItemId) || []
+            const rawGroups = dbGroups?.filter((g) => g.menu_item_id === menuItemId) || []
+            const itemGroups = rawGroups.filter((grp, idx, self) => self.findIndex((t) => t.name === grp.name) === idx)
             if (itemGroups.length === 0) return staticOpts
 
             return {
