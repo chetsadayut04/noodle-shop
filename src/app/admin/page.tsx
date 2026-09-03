@@ -197,12 +197,13 @@ export default function AdminPage() {
     e.preventDefault()
     if (!newItemName || !newItemPrice) return
     const id = newItemId.trim() || `item-${Date.now()}`
+    const actualCategory = newItemCategory === 'all' ? 'noodles' : newItemCategory
     try {
       const supabase = createClient()
       const { error } = await supabase.from('menu_items').insert({
         id,
         name: newItemName,
-        category_id: newItemCategory,
+        category_id: actualCategory,
         price: parseFloat(newItemPrice),
         is_available: true,
       })
@@ -668,6 +669,9 @@ export default function AdminPage() {
   const rawMenuGroups = optionGroups.filter((g) => g.menu_item_id === selectedMenuId)
   const currentMenuGroups = rawMenuGroups.filter((grp, idx, self) => self.findIndex((t) => t.name === grp.name) === idx)
 
+  // Filtered menu items based on selected category in form (Zero-clutter automatic filter)
+  const filteredMenuItems = newItemCategory === 'all' ? menuItems : menuItems.filter((i) => i.category_id === newItemCategory)
+
   return (
     <main className="min-h-dvh bg-background p-4 sm:p-6 pb-20">
       {/* Header */}
@@ -971,11 +975,12 @@ export default function AdminPage() {
               <select
                 value={newItemCategory}
                 onChange={(e) => setNewItemCategory(e.target.value)}
-                className="rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                className="rounded-xl border border-primary/30 bg-primary/5 p-2.5 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
               >
                 <option value="noodles">🍜 เมนูเส้น (noodles)</option>
                 <option value="khaomangai">🍚 เมนูข้าวมันไก่ (khaomangai)</option>
                 <option value="drinks">🥤 เครื่องดื่ม (drinks)</option>
+                <option value="all">📂 แสดงทุกหมวดหมู่ (ดูทั้งหมด)</option>
               </select>
               <input
                 type="number"
@@ -990,39 +995,64 @@ export default function AdminPage() {
             </div>
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-1 rounded-full bg-primary py-2.5 font-display text-xs font-bold text-primary-foreground shadow-xs"
+              className="flex w-full items-center justify-center gap-1 rounded-full bg-primary py-2.5 font-display text-xs font-bold text-primary-foreground shadow-xs cursor-pointer hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-4 w-4" /> เพิ่มสินค้าลงในเมนู
             </button>
           </form>
 
-          <ul className="mt-4 divide-y divide-border overflow-y-auto max-h-64">
-            {menuItems.map((item) => (
-              <li key={item.id} className="flex items-center justify-between py-2.5 text-xs">
-                <div>
-                  <p className="font-semibold text-card-foreground">{item.name}</p>
-                  <p className="text-[11px] text-muted-foreground">หมวดหมู่: {item.category_id} · {item.price} บาท</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => toggleMenuAvailable(item.id, item.is_available)}
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                      item.is_available ? 'bg-emerald-500/15 text-emerald-700' : 'bg-destructive/15 text-destructive'
-                    }`}
-                  >
-                    {item.is_available ? 'พร้อมขาย' : 'สินค้าหมด'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteMenuItem(item.id)}
-                    className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+          {/* Active Category Filter Header & Count */}
+          <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+            <span className="text-xs font-bold text-card-foreground flex items-center gap-1.5">
+              <span>📋 รายการในหมวด:</span>
+              <span className="text-primary font-display font-bold">
+                {newItemCategory === 'noodles' && '🍜 เมนูเส้น'}
+                {newItemCategory === 'khaomangai' && '🍚 เมนูข้าวมันไก่'}
+                {newItemCategory === 'drinks' && '🥤 เครื่องดื่ม'}
+                {newItemCategory === 'all' && '📂 ทุกหมวดหมู่'}
+              </span>
+            </span>
+            <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10px] text-muted-foreground font-semibold">
+              {filteredMenuItems.length} รายการ
+            </span>
+          </div>
+
+          <ul className="mt-2 divide-y divide-border overflow-y-auto max-h-64">
+            {filteredMenuItems.length === 0 ? (
+              <li className="py-6 text-center text-xs text-muted-foreground italic">
+                ยังไม่มีเมนูในหมวดนี้ สามารถพิมพ์ชื่อและราคาเพื่อเพิ่มได้จากฟอร์มด้านบน
               </li>
-            ))}
+            ) : (
+              filteredMenuItems.map((item) => (
+                <li key={item.id} className="flex items-center justify-between py-2.5 text-xs">
+                  <div>
+                    <p className="font-semibold text-card-foreground">{item.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      หมวด: {item.category_id === 'noodles' ? 'ก๋วยเตี๋ยว' : item.category_id === 'khaomangai' ? 'ข้าวมันไก่' : 'เครื่องดื่ม'} · {item.price} บาท
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleMenuAvailable(item.id, item.is_available)}
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold cursor-pointer transition-colors ${
+                        item.is_available ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25' : 'bg-destructive/15 text-destructive hover:bg-destructive/25'
+                      }`}
+                    >
+                      {item.is_available ? 'พร้อมขาย' : 'สินค้าหมด'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteMenuItem(item.id)}
+                      className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors"
+                      title="ลบเมนูนี้"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              ))
+            )}
           </ul>
         </section>
       </div>
