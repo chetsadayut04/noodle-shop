@@ -741,10 +741,10 @@ export default function AdminPage() {
     if (o.payments?.some((p) => !!p.slip_url)) return true
     const payment = o.payments?.[0]
     if (payment) {
-      if (payment.payment_method === 'promptpay' || payment.method === 'promptpay') return true
       if (payment.payment_method === 'cash' || payment.method === 'cash') return false
+      if (payment.payment_method === 'promptpay' || payment.method === 'promptpay') return true
     }
-    return true
+    return false
   }
 
   const isOrderPaid = (o: Order) => {

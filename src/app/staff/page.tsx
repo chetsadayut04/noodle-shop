@@ -21,6 +21,8 @@ import {
   Volume2,
   VolumeX,
   Bell,
+  Banknote,
+  Smartphone,
 } from 'lucide-react'
 
 type OrderItemOption = {
@@ -41,6 +43,8 @@ type Payment = {
   id: string
   slip_url: string | null
   status: string
+  payment_method?: string | null
+  method?: string | null
 }
 
 type Order = {
@@ -212,7 +216,11 @@ export default function StaffPage() {
     }
   }, [soundEnabled])
 
-  const updateOrderStatus = async (orderId: string, nextStatus: Order['status']) => {
+  const updateOrderStatus = async (
+    orderId: string,
+    nextStatus: Order['status'],
+    paymentMethod: 'cash' | 'promptpay' = 'cash'
+  ) => {
     try {
       const supabase = createClient()
       const { error } = await supabase
@@ -225,12 +233,29 @@ export default function StaffPage() {
       if (nextStatus === 'paid') {
         await supabase
           .from('payments')
-          .update({ status: 'paid' })
+          .update({
+            status: 'paid',
+            payment_method: paymentMethod,
+            method: paymentMethod,
+          })
           .eq('order_id', orderId)
       }
 
       setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
+        prev.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                status: nextStatus,
+                payments: o.payments?.map((p) => ({
+                  ...p,
+                  status: 'paid',
+                  payment_method: paymentMethod,
+                  method: paymentMethod,
+                })),
+              }
+            : o
+        )
       )
     } catch (err) {
       console.error('Update order status error:', err)
@@ -526,16 +551,26 @@ export default function StaffPage() {
                     )}
 
                     {!isPaid ? (
-                      <button
-                        type="button"
-                        onClick={() => updateOrderStatus(order.id, 'paid')}
-                        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
-                      >
-                        <DollarSign className="h-3.5 w-3.5" /> 💰 ยืนยันรับเงิน / ชำระแล้ว
-                      </button>
+                      <div className="mt-2 grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => updateOrderStatus(order.id, 'paid', 'cash')}
+                          className="flex items-center justify-center gap-1 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors active:scale-95 cursor-pointer"
+                        >
+                          <Banknote className="h-4 w-4" /> 💵 รับเงินสด
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateOrderStatus(order.id, 'paid', 'promptpay')}
+                          className="flex items-center justify-center gap-1 rounded-xl bg-teal-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-teal-700 transition-colors active:scale-95 cursor-pointer"
+                        >
+                          <Smartphone className="h-4 w-4" /> 📱 สแกนโอน
+                        </button>
+                      </div>
                     ) : (
-                      <div className="mt-2 text-center text-[11px] font-bold text-emerald-700 bg-emerald-500/10 py-1 rounded-xl">
-                        ✓ ชำระเงินเรียบร้อยแล้ว
+                      <div className="mt-2 text-center text-[11px] font-bold text-emerald-700 bg-emerald-500/10 py-1.5 rounded-xl flex items-center justify-center gap-1">
+                        <Check className="h-3.5 w-3.5" />
+                        <span>ชำระเงินเรียบร้อย ({order.payments?.[0]?.payment_method === 'cash' || order.payments?.[0]?.method === 'cash' ? '💵 เงินสด' : '📱 โอนเงิน'})</span>
                       </div>
                     )}
                   </div>
