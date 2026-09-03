@@ -219,7 +219,7 @@ export function PromptPayModal({ totalPrice, tableId = 'T1', lines = [], onClose
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="h-5 w-5" /> ยืนยันชำระเงินเรียบร้อย
+                  <CheckCircle2 className="h-5 w-5" /> ยืนยันชำระเงินเรียบร้อย / ส่งออเดอร์
                 </>
               )}
             </button>

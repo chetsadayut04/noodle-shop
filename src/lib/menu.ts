@@ -65,9 +65,14 @@ export const menuItems: MenuItem[] = [
   { id: 'kek-huay', name: 'เก๊กฮวยเย็น', description: 'ชาดอกเก๊กฮวย หอมชื่นใจ ดับร้อน', price: 25, image: '/food/kek-huay.png', category: 'drinks', options: drinkOptions },
 ]
 
-export const optionSummary = (selected: SelectedOptions) => Object.values(selected).flat().map((option) => option.label).join(' · ')
+export const optionSummary = (selected: SelectedOptions, instructions?: string) => {
+  const opts = Object.values(selected).flat().map((option) => option.label).join(' · ')
+  const note = instructions?.trim() ? `📝 ${instructions.trim()}` : ''
+  if (opts && note) return `${opts} | ${note}`
+  return opts || note
+}
 export const optionPrice = (selected: SelectedOptions) => Object.values(selected).flat().reduce((sum, option) => sum + (option.price ?? 0), 0)
-export const optionsKey = (selected: SelectedOptions) => JSON.stringify(selected)
+export const optionsKey = (selected: SelectedOptions, instructions?: string) => JSON.stringify({ s: selected, i: (instructions || '').trim() })
 
 export function hasRequiredOptions(item: MenuItem, selected: SelectedOptions) {
   return !item.options?.groups.some((group) => group.required && !selected[group.id]?.length)

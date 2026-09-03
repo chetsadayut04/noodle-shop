@@ -9,7 +9,7 @@ import { createClient } from '@/utils/supabase/client'
 import { createOrderOnly } from '@/lib/payment'
 import { Receipt, UtensilsCrossed, Shield, UserCheck, CheckCircle2, Loader2 } from 'lucide-react'
 
-type CartEntry = { item: MenuItem; selected: SelectedOptions; quantity: number }
+type CartEntry = { item: MenuItem; selected: SelectedOptions; instructions?: string; quantity: number }
 
 type MenuPageProps = {
   tableId?: string
@@ -104,19 +104,27 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
     fetchMenuItemsAndOptions()
   }, [])
 
-  const addItem = (item: MenuItem, selected: SelectedOptions) => {
-    const key = `${item.id}-${optionsKey(selected)}`
-    setCart((prev) => ({ ...prev, [key]: { item, selected, quantity: (prev[key]?.quantity ?? 0) + 1 } }))
+  const addItem = (item: MenuItem, selected: SelectedOptions, instructions?: string) => {
+    const key = `${item.id}-${optionsKey(selected, instructions)}`
+    setCart((prev) => ({
+      ...prev,
+      [key]: { item, selected, instructions, quantity: (prev[key]?.quantity ?? 0) + 1 },
+    }))
   }
 
-  const removeItem = (entry: CartEntry) => setCart((prev) => {
-    const key = Object.keys(prev).find((k) => prev[k].item.id === entry.item.id && optionsKey(prev[k].selected) === optionsKey(entry.selected))
-    if (!key) return prev
-    const next = { ...prev }
-    if (next[key].quantity <= 1) delete next[key]
-    else next[key] = { ...next[key], quantity: next[key].quantity - 1 }
-    return next
-  })
+  const removeItem = (entry: CartEntry) =>
+    setCart((prev) => {
+      const key = Object.keys(prev).find(
+        (k) =>
+          prev[k].item.id === entry.item.id &&
+          optionsKey(prev[k].selected, prev[k].instructions) === optionsKey(entry.selected, entry.instructions)
+      )
+      if (!key) return prev
+      const next = { ...prev }
+      if (next[key].quantity <= 1) delete next[key]
+      else next[key] = { ...next[key], quantity: next[key].quantity - 1 }
+      return next
+    })
 
   const removeItemByMenu = (item: MenuItem) => {
     const entry = Object.values(cart).find((line) => line.item.id === item.id)

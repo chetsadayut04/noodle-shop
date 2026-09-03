@@ -63,6 +63,7 @@ export default function StaffPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [selectedSlip, setSelectedSlip] = useState<string | null>(null)
   const [stockModalOpen, setStockModalOpen] = useState(false)
   const router = useRouter()
 
@@ -363,7 +364,15 @@ export default function StaffPage() {
                       <span className="font-display text-sm font-bold text-primary">{order.total} บาท</span>
                     </div>
 
-
+                    {slipUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSlip(slipUrl)}
+                        className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl bg-secondary py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-secondary/80"
+                      >
+                        <Eye className="h-3.5 w-3.5 text-primary" /> ดูสลิปเงินโอน
+                      </button>
+                    )}
 
                     {!isPaid ? (
                       <button
@@ -440,7 +449,19 @@ export default function StaffPage() {
         </div>
       )}
 
-      {/* END OF STAFF PAGE */}
+      {/* SLIP MODAL VIEW */}
+      {selectedSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button type="button" onClick={() => setSelectedSlip(null)} className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" />
+          <div className="relative z-10 max-h-[85vh] w-full max-w-sm rounded-3xl bg-card p-4 shadow-2xl">
+            <button type="button" onClick={() => setSelectedSlip(null)} className="absolute right-3 top-3 rounded-full bg-secondary p-1.5">
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="mb-3 font-display text-base font-bold text-card-foreground">สลิปการโอนเงิน</h3>
+            <img src={selectedSlip} alt="Slip" className="mx-auto max-h-[70vh] rounded-2xl object-contain" />
+          </div>
+        </div>
+      )}
     </main>
   )
 }

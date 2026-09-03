@@ -67,6 +67,13 @@ export async function createOrderOnly({
           extra_price: opt.price || 0,
         })
       }
+      if (line.instructions && line.instructions.trim()) {
+        await supabase.from('order_item_options').insert({
+          order_item_id: orderItem.id,
+          name: `📝 ${line.instructions.trim()}`,
+          extra_price: 0,
+        })
+      }
     }
   }
 
@@ -184,6 +191,13 @@ export async function createOrderWithPayment({
           order_item_id: orderItem.id,
           name: opt.label,
           extra_price: opt.price || 0,
+        })
+      }
+      if (line.instructions && line.instructions.trim()) {
+        await supabase.from('order_item_options').insert({
+          order_item_id: orderItem.id,
+          name: `📝 ${line.instructions.trim()}`,
+          extra_price: 0,
         })
       }
     }

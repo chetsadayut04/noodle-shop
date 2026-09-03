@@ -9,19 +9,21 @@ type MenuCardProps = {
   item: MenuItem
   quantity: number
   isAvailable?: boolean
-  onAdd: (item: MenuItem, selected: SelectedOptions) => void
+  onAdd: (item: MenuItem, selected: SelectedOptions, instructions?: string) => void
   onRemove: (item: MenuItem) => void
 }
 
 export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }: MenuCardProps) {
   const [customizing, setCustomizing] = useState(false)
   const [selected, setSelected] = useState<SelectedOptions>(() => defaultOptions(item))
+  const [instructions, setInstructions] = useState('')
 
   const choose = (groupId: string, option: MenuOption) => setSelected((prev) => ({ ...prev, [groupId]: [option] }))
   const add = () => {
     if (!item.options || hasRequiredOptions(item, selected)) {
-      onAdd(item, item.options ? selected : {})
+      onAdd(item, item.options ? selected : {}, instructions.trim() || undefined)
       setCustomizing(false)
+      setInstructions('')
     }
   }
 
@@ -163,6 +165,22 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
                   </div>
                 </fieldset>
               )}
+
+              {/* Special Instructions / Note */}
+              <div className="rounded-2xl border border-border bg-secondary/30 p-3.5 space-y-2">
+                <label className="flex items-center gap-1.5 text-xs font-bold text-card-foreground">
+                  <span>📝 หมายเหตุเพิ่มเติมถึงร้านค้า</span>
+                  <span className="text-[10px] font-normal text-muted-foreground">(ถ้ามี)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="เช่น ไม่ใส่กระเทียมเจียว / เผ็ดน้อย / น้ำซุปแยก..."
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  maxLength={100}
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
             </div>
 
             <button

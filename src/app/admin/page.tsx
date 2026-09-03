@@ -70,7 +70,7 @@ type Order = {
   status: string
   total: number
   created_at: string
-  payments?: { method?: string; slip_url?: string | null }[]
+  payments?: { slip_url: string | null }[]
 }
 
 const COLORS = ['#eab308', '#3b82f6', '#a855f7', '#10b981']
@@ -409,18 +409,18 @@ export default function AdminPage() {
     return 'ยอดขายรวมทุกวัน (ทั้งหมด)'
   }
 
-  const selectedCashRevenue = filteredOrders
-    .filter((o) => o.status === 'paid' && o.payments?.some((p) => p.method === 'cash'))
+  const selectedTransferRevenue = filteredOrders
+    .filter((o) => o.payments?.some((p) => p.slip_url))
     .reduce((sum, o) => sum + (o.total || 0), 0)
 
-  const selectedTransferRevenue = filteredOrders
-    .filter((o) => o.status === 'paid' && !o.payments?.some((p) => p.method === 'cash'))
+  const selectedCashRevenue = filteredOrders
+    .filter((o) => o.status === 'paid' && !o.payments?.some((p) => p.slip_url))
     .reduce((sum, o) => sum + (o.total || 0), 0)
 
   const selectedTotalRevenue = selectedTransferRevenue + selectedCashRevenue
 
   const selectedOrdersCount = filteredOrders.filter(
-    (o) => o.status === 'paid' || (o.payments && o.payments.length > 0)
+    (o) => o.status === 'paid' || o.payments?.some((p) => p.slip_url)
   ).length
 
   // Revenue chart data (7 days)
@@ -964,18 +964,20 @@ export default function AdminPage() {
                 <th className="pb-2">เวลา</th>
                 <th className="pb-2">ยอดเงิน</th>
                 <th className="pb-2">สถานะ</th>
+                <th className="pb-2 text-right">สลิป</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-center text-xs text-muted-foreground italic">
+                  <td colSpan={5} className="py-6 text-center text-xs text-muted-foreground italic">
                     ไม่มีประวัติคำสั่งซื้อสำหรับวันที่เลือก
                   </td>
                 </tr>
               ) : (
                 filteredOrders.map((o) => {
-                  const isPaid = o.status === 'paid'
+                  const slipUrl = o.payments?.[0]?.slip_url
+                  const isPaid = o.status === 'paid' || !!slipUrl
                   return (
                     <tr key={o.id} className="hover:bg-secondary/40">
                       <td className="py-2.5 font-semibold text-card-foreground">
@@ -1006,6 +1008,19 @@ export default function AdminPage() {
                             : '⏳ รอรับออเดอร์'}
                         </span>
                       </td>
+                      <td className="py-2.5 text-right">
+                        {slipUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSlip(slipUrl)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground hover:bg-secondary/80"
+                          >
+                            <Eye className="h-3 w-3" /> สลิป
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground text-[10px]">-</span>
+                        )}
+                      </td>
                     </tr>
                   )
                 })
@@ -1014,6 +1029,20 @@ export default function AdminPage() {
           </table>
         </div>
       </section>
+
+      {/* Slip Modal View */}
+      {selectedSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button type="button" onClick={() => setSelectedSlip(null)} className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" />
+          <div className="relative z-10 max-h-[85vh] w-full max-w-sm rounded-3xl bg-card p-4 shadow-2xl">
+            <button type="button" onClick={() => setSelectedSlip(null)} className="absolute right-3 top-3 rounded-full bg-secondary p-1.5">
+              ✕
+            </button>
+            <h3 className="mb-3 font-display text-base font-bold text-card-foreground">สลิปการโอนเงิน</h3>
+            <img src={selectedSlip} alt="Slip" className="mx-auto max-h-[70vh] rounded-2xl object-contain" />
+          </div>
+        </div>
+      )}
     </main>
   )
 }
