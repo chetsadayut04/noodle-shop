@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Minus, SlidersHorizontal, X } from 'lucide-react'
 import type { MenuItem, SelectedOptions, MenuOption } from '@/lib/menu'
 import { defaultOptions, hasRequiredOptions, optionPrice } from '@/lib/menu'
@@ -18,10 +19,32 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
   const [selected, setSelected] = useState<SelectedOptions>(() => defaultOptions(item))
   const [instructions, setInstructions] = useState('')
 
+  // Sync selected options when item options change (e.g. dynamic options loaded from Supabase)
+  useEffect(() => {
+    setSelected(defaultOptions(item))
+  }, [item])
+
+  const openCustomizer = () => {
+    setSelected(defaultOptions(item))
+    setInstructions('')
+    setCustomizing(true)
+  }
+
   const choose = (groupId: string, option: MenuOption) => setSelected((prev) => ({ ...prev, [groupId]: [option] }))
   const add = () => {
     if (!item.options || hasRequiredOptions(item, selected)) {
       onAdd(item, item.options ? selected : {}, instructions.trim() || undefined)
+      // 🛡️ Filter out any stale keys that don't belong to current item.options
+      const validGroupIds = new Set(item.options?.groups?.map((g) => g.id) || [])
+      const cleanSelected: SelectedOptions = {}
+      if (item.options) {
+        for (const [gid, opts] of Object.entries(selected)) {
+          if (gid === 'extras' || validGroupIds.has(gid)) {
+            cleanSelected[gid] = opts
+          }
+        }
+      }
+      onAdd(item, item.options ? cleanSelected : {}, instructions.trim() || undefined)
       setCustomizing(false)
       setInstructions('')
     }
@@ -60,6 +83,8 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
               type="button"
               onClick={() => (item.options ? setCustomizing(true) : add())}
               className="flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
+              onClick={() => (item.options ? openCustomizer() : add())}
+              className="flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform active:scale-95 cursor-pointer"
               aria-label={`เพิ่ม ${item.name} ลงตะกร้า`}
             >
               <Plus className="h-4 w-4" />เพิ่ม
@@ -70,6 +95,7 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
                 type="button"
                 onClick={() => onRemove(item)}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-secondary-foreground"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-secondary-foreground cursor-pointer"
                 aria-label={`ลด ${item.name}`}
               >
                 <Minus className="h-4 w-4" />
@@ -79,6 +105,8 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
                 type="button"
                 onClick={() => (item.options ? setCustomizing(true) : add())}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                onClick={() => (item.options ? openCustomizer() : add())}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground cursor-pointer"
                 aria-label={`เพิ่ม ${item.name}`}
               >
                 <Plus className="h-4 w-4" />

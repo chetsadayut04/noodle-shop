@@ -106,9 +106,20 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
 
   const addItem = (item: MenuItem, selected: SelectedOptions, instructions?: string) => {
     const key = `${item.id}-${optionsKey(selected, instructions)}`
+    // 🛡️ Sanitize selected to strictly only retain options matching valid group IDs of the item
+    const validGroupIds = new Set(item.options?.groups?.map((g) => g.id) || [])
+    const cleanSelected: SelectedOptions = {}
+    for (const [gid, opts] of Object.entries(selected)) {
+      if (gid === 'extras' || validGroupIds.has(gid)) {
+        cleanSelected[gid] = opts
+      }
+    }
+
+    const key = `${item.id}-${optionsKey(cleanSelected, instructions)}`
     setCart((prev) => ({
       ...prev,
       [key]: { item, selected, instructions, quantity: (prev[key]?.quantity ?? 0) + 1 },
+      [key]: { item, selected: cleanSelected, instructions, quantity: (prev[key]?.quantity ?? 0) + 1 },
     }))
   }
 

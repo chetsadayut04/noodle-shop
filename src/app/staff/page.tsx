@@ -222,9 +222,18 @@ export default function StaffPage() {
   }
 
   const handlePosAddToCart = (item: MenuItem, selected: SelectedOptions, instructions: string) => {
-    const extra = optionPrice(selected)
+    // 🛡️ Sanitize selected options to valid group IDs only
+    const validGroupIds = new Set(item.options?.groups?.map((g: any) => g.id) || [])
+    const cleanSelected: SelectedOptions = {}
+    for (const [gid, opts] of Object.entries(selected)) {
+      if (gid === 'extras' || validGroupIds.has(gid)) {
+        cleanSelected[gid] = opts
+      }
+    }
+
+    const extra = optionPrice(cleanSelected)
     const unitPrice = (Number(item.price) || 0) + extra
-    const selectedKey = JSON.stringify(selected) + instructions.trim()
+    const selectedKey = JSON.stringify(cleanSelected) + instructions.trim()
 
     setPosCart((prev) => {
       const idx = prev.findIndex(
@@ -240,7 +249,7 @@ export default function StaffPage() {
         {
           id: `${item.id}-${Date.now()}-${Math.random()}`,
           menuItem: item,
-          selectedOptions: selected,
+          selectedOptions: cleanSelected,
           instructions: instructions.trim(),
           unitPrice,
           qty: 1,
@@ -836,11 +845,16 @@ export default function StaffPage() {
                             <span>{item.price * item.qty}฿</span>
                           </div>
                           {(() => {
-                            const allOpts = (item.order_item_options && item.order_item_options.length > 0)
+                            const rawOpts = (item.order_item_options && item.order_item_options.length > 0)
                               ? item.order_item_options
                               : (item.options && item.options.length > 0)
                               ? item.options
                               : []
+
+                            // 🛡️ Deduplicate options by clean name
+                            const allOpts = rawOpts.filter(
+                              (opt, idx, self) => self.findIndex((o) => o.name.trim() === opt.name.trim()) === idx
+                            )
 
                             return (
                               <>
@@ -951,11 +965,34 @@ export default function StaffPage() {
                     {/* Order Items */}
                     <ul className="mt-2 divide-y divide-border/40 text-xs">
                       {order.order_items?.map((item) => (
-                        <li key={item.id} className="py-1">
-                          <div className="flex justify-between text-foreground">
+                        <li key={item.id} className="py-1.5">
+                          <div className="flex justify-between text-foreground font-medium">
                             <span>{item.name} × {item.qty}</span>
                             <span>{item.price * item.qty}฿</span>
                           </div>
+                          {(() => {
+                            const rawOpts = (item.order_item_options && item.order_item_options.length > 0)
+                              ? item.order_item_options
+                              : (item.options && item.options.length > 0)
+                              ? item.options
+                              : []
+
+                            const allOpts = rawOpts.filter(
+                              (opt, idx, self) => self.findIndex((o) => o.name.trim() === opt.name.trim()) === idx
+                            )
+
+                            if (allOpts.length === 0) return null
+
+                            return (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {allOpts.map((opt) => (
+                                  <span key={opt.id} className="inline-block rounded-md bg-secondary/80 px-1.5 py-0.5 text-[10px] text-secondary-foreground font-medium">
+                                    {opt.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )
+                          })()}
                         </li>
                       ))}
                     </ul>
