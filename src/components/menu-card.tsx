@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useState, useEffect } from 'react'
 import { Plus, Minus, SlidersHorizontal, X } from 'lucide-react'
 import type { MenuItem, SelectedOptions, MenuOption } from '@/lib/menu'
@@ -33,7 +32,6 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
   const choose = (groupId: string, option: MenuOption) => setSelected((prev) => ({ ...prev, [groupId]: [option] }))
   const add = () => {
     if (!item.options || hasRequiredOptions(item, selected)) {
-      onAdd(item, item.options ? selected : {}, instructions.trim() || undefined)
       // 🛡️ Filter out any stale keys that don't belong to current item.options
       const validGroupIds = new Set(item.options?.groups?.map((g) => g.id) || [])
       const cleanSelected: SelectedOptions = {}
@@ -81,8 +79,6 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
           ) : quantity === 0 ? (
             <button
               type="button"
-              onClick={() => (item.options ? setCustomizing(true) : add())}
-              className="flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
               onClick={() => (item.options ? openCustomizer() : add())}
               className="flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform active:scale-95 cursor-pointer"
               aria-label={`เพิ่ม ${item.name} ลงตะกร้า`}
@@ -94,7 +90,6 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
               <button
                 type="button"
                 onClick={() => onRemove(item)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-secondary-foreground"
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-secondary-foreground cursor-pointer"
                 aria-label={`ลด ${item.name}`}
               >
@@ -103,8 +98,6 @@ export function MenuCard({ item, quantity, isAvailable = true, onAdd, onRemove }
               <span className="min-w-5 text-center font-display font-bold text-secondary-foreground">{quantity}</span>
               <button
                 type="button"
-                onClick={() => (item.options ? setCustomizing(true) : add())}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground"
                 onClick={() => (item.options ? openCustomizer() : add())}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground cursor-pointer"
                 aria-label={`เพิ่ม ${item.name}`}
