@@ -559,6 +559,37 @@ export default function StaffPage() {
     }
   }
 
+  const handleCancelOrder = async (order: Order, openPosAfter = false) => {
+    const tableDisplay = order.table_id.startsWith('T') ? `โต๊ะ ${order.table_id.replace(/^t/i, '')}` : order.table_id
+    if (!confirm(`ต้องการยกเลิกออเดอร์ของ "${tableDisplay}" ใช่หรือไม่?`)) return
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'cancelled' })
+        .eq('id', order.id)
+
+      if (error) throw error
+
+      setOrders((prev) => prev.filter((o) => o.id !== order.id))
+
+      if (openPosAfter) {
+        const cleanTable = order.table_id.startsWith('T')
+          ? order.table_id.replace(/^t/i, '')
+          : order.table_id === 'กลับบ้าน'
+          ? 'takeaway'
+          : '1'
+        setPosTableId(cleanTable)
+        setPosCart([])
+        setPosModalOpen(true)
+      }
+    } catch (err: any) {
+      console.error('Cancel order error:', err)
+      alert('เกิดข้อผิดพลาดในการยกเลิกออเดอร์: ' + (err.message || ''))
+    }
+  }
+
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -763,12 +794,33 @@ export default function StaffPage() {
                 return (
                   <div key={order.id} className="rounded-2xl border border-border bg-background p-4 shadow-xs">
                     <div className="flex items-center justify-between border-b border-border pb-2">
-                      <span className="font-display text-base font-bold text-primary">
-                        โต๊ะ {order.table_id} <span className="ml-1 text-xs font-normal text-foreground">(#{order.id.slice(0, 8).toUpperCase()})</span>
-                      </span>
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${isPending ? 'bg-amber-500/15 text-amber-700' : 'bg-blue-500/15 text-blue-700'}`}>
-                        {isPending ? 'รอรับออเดอร์' : 'กำลังปรุงอาหาร'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-display text-base font-bold text-primary">
+                          โต๊ะ {order.table_id} <span className="ml-1 text-xs font-normal text-foreground">(#{order.id.slice(0, 8).toUpperCase()})</span>
+                        </span>
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${isPending ? 'bg-amber-500/15 text-amber-700' : 'bg-blue-500/15 text-blue-700'}`}>
+                          {isPending ? 'รอรับออเดอร์' : 'กำลังปรุงอาหาร'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleCancelOrder(order, true)}
+                          className="inline-flex items-center gap-1 rounded-xl bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-500/25 cursor-pointer transition-colors"
+                          title="ลูกค้าเปลี่ยนใจ สั่งเมนูใหม่แทน"
+                        >
+                          <RefreshCw className="h-3 w-3" /> เปลี่ยนเมนู
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCancelOrder(order, false)}
+                          className="inline-flex items-center gap-1 rounded-xl bg-destructive/15 px-2 py-1 text-[11px] font-bold text-destructive hover:bg-destructive/25 cursor-pointer transition-colors"
+                          title="ยกเลิกออเดอร์นี้"
+                        >
+                          <Trash2 className="h-3 w-3" /> ยกเลิก
+                        </button>
+                      </div>
                     </div>
 
                     <div className="mt-1 text-[11px] text-muted-foreground">
@@ -924,22 +976,33 @@ export default function StaffPage() {
                     )}
 
                     {!isPaid ? (
-                      <div className="mt-2 grid grid-cols-2 gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => updateOrderStatus(order.id, 'paid', 'cash')}
-                          className="flex items-center justify-center gap-1 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors active:scale-95 cursor-pointer"
-                        >
-                          <Banknote className="h-4 w-4" /> 💵 รับเงินสด
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateOrderStatus(order.id, 'paid', 'promptpay')}
-                          className="flex items-center justify-center gap-1 rounded-xl bg-teal-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-teal-700 transition-colors active:scale-95 cursor-pointer"
-                        >
-                          <Smartphone className="h-4 w-4" /> 📱 สแกนโอน
-                        </button>
-                      </div>
+                      <>
+                        <div className="mt-2 grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => updateOrderStatus(order.id, 'paid', 'cash')}
+                            className="flex items-center justify-center gap-1 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors active:scale-95 cursor-pointer"
+                          >
+                            <Banknote className="h-4 w-4" /> 💵 รับเงินสด
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateOrderStatus(order.id, 'paid', 'promptpay')}
+                            className="flex items-center justify-center gap-1 rounded-xl bg-teal-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-teal-700 transition-colors active:scale-95 cursor-pointer"
+                          >
+                            <Smartphone className="h-4 w-4" /> 📱 สแกนโอน
+                          </button>
+                        </div>
+                        <div className="mt-1 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleCancelOrder(order, false)}
+                            className="text-[10px] text-destructive hover:underline flex items-center gap-1 cursor-pointer font-semibold py-0.5"
+                          >
+                            <Trash2 className="h-2.5 w-2.5" /> ยกเลิกบิลนี้
+                          </button>
+                        </div>
+                      </>
                     ) : (
                       <div className="mt-2 text-center text-[11px] font-bold text-emerald-700 bg-emerald-500/10 py-1.5 rounded-xl flex items-center justify-center gap-1">
                         <Check className="h-3.5 w-3.5" />

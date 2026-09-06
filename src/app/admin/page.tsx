@@ -748,6 +748,7 @@ export default function AdminPage() {
   }
 
   const isOrderPaid = (o: Order) => {
+    if (o.status === 'cancelled') return false
     return (
       o.status === 'paid' ||
       o.payments?.some((p) => p.status === 'paid' || p.status === 'submitted' || !!p.slip_url)
@@ -769,8 +770,9 @@ export default function AdminPage() {
   // Revenue chart data (7 days)
   const chartDataMap: Record<string, number> = {}
   orders.forEach((o) => {
+    if (o.status === 'cancelled') return
     const dateKey = new Date(o.created_at).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })
-    chartDataMap[dateKey] = (chartDataMap[dateKey] || 0) + (o.total || 0)
+    chartDataMap[dateKey] = (chartDataMap[dateKey] || 0) + (isOrderPaid(o) ? o.total || 0 : 0)
   })
   const revenueChartData = Object.keys(chartDataMap).map((key) => ({
     date: key,
@@ -1065,7 +1067,9 @@ export default function AdminPage() {
                           <td className="py-2.5">
                             <span
                               className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                                isPaid
+                                o.status === 'cancelled'
+                                  ? 'bg-destructive/15 text-destructive'
+                                  : isPaid
                                   ? 'bg-emerald-500/15 text-emerald-700'
                                   : o.status === 'served'
                                   ? 'bg-purple-500/15 text-purple-700'
@@ -1074,7 +1078,9 @@ export default function AdminPage() {
                                   : 'bg-amber-500/15 text-amber-700'
                               }`}
                             >
-                              {isPaid
+                              {o.status === 'cancelled'
+                                ? '🚫 ยกเลิกแล้ว'
+                                : isPaid
                                 ? '✓ ชำระแล้ว'
                                 : o.status === 'served'
                                 ? '🍲 เสิร์ฟแล้ว'
@@ -1084,7 +1090,11 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="py-2.5">
-                            {!isPaid ? (
+                            {o.status === 'cancelled' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground line-through">
+                                ยกเลิกบิล
+                              </span>
+                            ) : !isPaid ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-secondary/80 border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                                 ⏳ รอชำระเงิน
                               </span>
