@@ -8,7 +8,7 @@ import { OrderSummary } from '@/components/order-summary'
 import { createClient } from '@/utils/supabase/client'
 import { createOrderOnly } from '@/lib/payment'
 import { getStoreSettings } from '@/lib/store-settings'
-import { Receipt, UtensilsCrossed, Shield, UserCheck, CheckCircle2, Loader2, Moon, AlertCircle } from 'lucide-react'
+import { Receipt, UtensilsCrossed, CheckCircle2, Loader2, Moon, AlertCircle } from 'lucide-react'
 
 type CartEntry = { item: MenuItem; selected: SelectedOptions; instructions?: string; packaging?: 'dine-in' | 'takeaway'; quantity: number }
 
@@ -351,30 +351,14 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-center">
-            <a
-              href="/staff"
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-amber-400 text-amber-950 px-3.5 py-2 text-xs font-bold shadow-md shadow-amber-400/20 hover:bg-amber-300 transition-colors"
-            >
-              <UserCheck className="h-3.5 w-3.5" />
-              <span>{userRole ? 'Staff / POS' : 'Staff / POS 👩‍🍳'}</span>
-            </a>
-
-            {userRole === 'admin' && (
-              <a
-                href="/admin"
-                className="inline-flex items-center gap-1 rounded-2xl bg-white/15 border border-white/20 px-3 py-2 text-xs font-bold text-white hover:bg-white/25 transition-colors"
-              >
-                <Shield className="h-3.5 w-3.5" /> Admin
-              </a>
-            )}
-
             <button
               type="button"
               onClick={() => setSummaryOpen(true)}
               aria-label="ดูสรุปรายการอาหารและค่าใช้จ่าย"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/20 border border-white/30 text-white hover:bg-white/30 transition-all active:scale-95 shadow-xs"
+              className="flex items-center gap-2 rounded-2xl bg-white/20 border border-white/30 px-3.5 py-2.5 text-white hover:bg-white/30 transition-all active:scale-95 shadow-xs cursor-pointer"
             >
-              <Receipt className="h-5 w-5" />
+              <Receipt className="h-4 w-4" />
+              <span className="text-xs font-bold">บิล / ประวัติสั่ง</span>
             </button>
           </div>
         </div>
