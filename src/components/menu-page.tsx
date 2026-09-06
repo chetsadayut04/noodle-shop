@@ -7,10 +7,9 @@ import { FloatingCart } from '@/components/floating-cart'
 import { OrderSummary } from '@/components/order-summary'
 import { createClient } from '@/utils/supabase/client'
 import { createOrderOnly } from '@/lib/payment'
-import { getStoreSettings } from '@/lib/store-settings'
-import { Receipt, UtensilsCrossed, CheckCircle2, Loader2, Moon, AlertCircle } from 'lucide-react'
+import { Receipt, UtensilsCrossed, Shield, UserCheck, CheckCircle2, Loader2 } from 'lucide-react'
 
-type CartEntry = { item: MenuItem; selected: SelectedOptions; instructions?: string; packaging?: 'dine-in' | 'takeaway'; quantity: number }
+type CartEntry = { item: MenuItem; selected: SelectedOptions; instructions?: string; quantity: number }
 
 type MenuPageProps = {
   tableId?: string
@@ -24,92 +23,11 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
   
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [orderSuccessOpen, setOrderSuccessOpen] = useState(false)
-  const [billPaidSuccessOpen, setBillPaidSuccessOpen] = useState(false)
   const [submittingOrder, setSubmittingOrder] = useState(false)
   
   const [userRole, setUserRole] = useState<string | null>(null)
   const [availabilityMap, setAvailabilityMap] = useState<Record<string, boolean>>({})
   const [dbMenuItems, setDbMenuItems] = useState<MenuItem[]>(staticMenuItems)
-  const [isStoreOpen, setIsStoreOpen] = useState(true)
-  const [closedReason, setClosedReason] = useState('ขณะนี้ร้านปิดรับออเดอร์ชั่วคราว')
-
-  const resetBill = (showCelebration = true) => {
-    setCart({})
-    setOrderedHistory([])
-    setLastOrderId(null)
-    setSummaryOpen(false)
-    setOrderSuccessOpen(false)
-    if (showCelebration) {
-      setBillPaidSuccessOpen(true)
-    }
-  }
-
-  // 1. Real-time listener: When staff marks order as PAID, automatically reset customer's bill & cart
-  useEffect(() => {
-    const supabase = createClient()
-    const normTable = String(tableId || '').trim().toUpperCase().replace(/^T/, '')
-    const channel = supabase
-      .channel(`realtime-customer-table-${tableId}-${Date.now()}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-        },
-        (payload) => {
-          const updated = payload.new as any
-          if (!updated) return
-          const updatedTable = String(updated.table_id || '').trim().toUpperCase().replace(/^T/, '')
-          const isOurTable = updatedTable === normTable || updated.table_id === tableId || (lastOrderId && updated.id === lastOrderId)
-          if (isOurTable && updated.status === 'paid') {
-            resetBill(true)
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [tableId, lastOrderId])
-
-  // 2. Polling Fallback (Every 3 seconds): Check if active order was marked 'paid'
-  useEffect(() => {
-    if (!lastOrderId && orderedHistory.length === 0) return
-
-    const checkPaidStatus = async () => {
-      try {
-        const supabase = createClient()
-        if (lastOrderId) {
-          const { data } = await supabase
-            .from('orders')
-            .select('status')
-            .eq('id', lastOrderId)
-            .single()
-          if (data && data.status === 'paid') {
-            resetBill(true)
-          }
-        } else if (orderedHistory.length > 0) {
-          const { data } = await supabase
-            .from('orders')
-            .select('status')
-            .eq('table_id', tableId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single()
-          if (data && data.status === 'paid') {
-            resetBill(true)
-          }
-        }
-      } catch {
-        // ignore background poll errors
-      }
-    }
-
-    const timer = setInterval(checkPaidStatus, 3000)
-    return () => clearInterval(timer)
-  }, [lastOrderId, orderedHistory.length, tableId])
 
   useEffect(() => {
     const supabase = createClient()
@@ -121,26 +39,14 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
       }
     })
 
-    // Fetch live menu items, option_groups, options, and sales stats from Supabase
+    // Fetch live menu items, option_groups, and options from Supabase
     async function fetchMenuItemsAndOptions() {
       try {
         const { data: items } = await supabase.from('menu_items').select('*')
         const { data: dbGroups } = await supabase.from('option_groups').select('*')
         const { data: dbOptions } = await supabase.from('options').select('*')
-        const { data: orderItemsData } = await supabase.from('order_items').select('menu_item_id, name, qty')
 
-        // 📊 Calculate live sales count for each menu item from actual orders
-        const salesCountMap: Record<string, number> = {}
-        if (orderItemsData && orderItemsData.length > 0) {
-          for (const oi of orderItemsData) {
-            const key = oi.menu_item_id || oi.name
-            if (key) {
-              salesCountMap[key] = (salesCountMap[key] || 0) + (Number(oi.qty) || 1)
-            }
-          }
-        }
-
-        if (items && items.length > 0) {
+        if (items) {
           const map: Record<string, boolean> = {}
           items.forEach((item) => {
             map[item.id] = item.is_available
@@ -149,8 +55,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
 
           // Helper to attach dynamic options from Supabase DB
           const buildOptions = (menuItemId: string, staticOpts?: any) => {
-            const rawGroups = dbGroups?.filter((g) => g.menu_item_id === menuItemId) || []
-            const itemGroups = rawGroups.filter((grp, idx, self) => self.findIndex((t) => t.name === grp.name) === idx)
+            const itemGroups = dbGroups?.filter((g) => g.menu_item_id === menuItemId) || []
             if (itemGroups.length === 0) return staticOpts
 
             return {
@@ -167,85 +72,43 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
             }
           }
 
-          // 🏆 Find top sellers if orders exist in DB
-          const rankedItems = [...items]
-            .map((i) => ({ id: i.id, count: salesCountMap[i.id] || salesCountMap[i.name] || 0 }))
-            .filter((x) => x.count > 0)
-            .sort((a, b) => b.count - a.count)
+          // Filter out deleted items from static list based on Supabase DB
+          const liveIds = new Set(items.map((d) => d.id))
+          const filteredStatic = staticMenuItems
+            .filter((m) => liveIds.has(m.id))
+            .map((m) => ({
+              ...m,
+              options: buildOptions(m.id, m.options),
+            }))
 
-          const top1Id = rankedItems[0]?.id
-          const top2Id = rankedItems[1]?.id
-          const top3Id = rankedItems[2]?.id
-
-          const dynamicMenuItems: MenuItem[] = items.map((d) => {
-            const staticMatch = staticMenuItems.find((m) => m.id === d.id)
-
-            // ⚡ Dynamic Auto Best Seller Badge
-            let autoBadge = d.badge || staticMatch?.badge
-            if (rankedItems.length > 0) {
-              if (d.id === top1Id) {
-                autoBadge = '🔥 ขายดีอันดับ 1'
-              } else if (d.id === top2Id || d.id === top3Id) {
-                autoBadge = '🔥 ขายดี'
-              }
-            }
-
-            return {
+          // Add newly added DB items not in static file
+          const newDbItems: MenuItem[] = items
+            .filter((d) => !staticMenuItems.some((m) => m.id === d.id))
+            .map((d) => ({
               id: d.id,
               name: d.name,
               category: d.category_id as any,
               price: Number(d.price),
-              description: d.description || staticMatch?.description || 'เมนูอร่อยจากทางร้าน',
-              image: d.image_url || staticMatch?.image || '/food/nam-tok.png',
-              badge: autoBadge,
-              options: buildOptions(d.id, staticMatch?.options),
-            }
-          })
+              description: 'เมนูอร่อยจากทางร้าน',
+              image: '/food/ba-mee.png',
+              options: buildOptions(d.id),
+            }))
 
-          setDbMenuItems(dynamicMenuItems)
-        } else {
-          // 🛡️ When DB is empty, use all authentic store items from static menu
-          setDbMenuItems(staticMenuItems)
+          setDbMenuItems([...filteredStatic, ...newDbItems])
         }
       } catch (err) {
         console.error('Fetch menu items & options error:', err)
-        setDbMenuItems(staticMenuItems)
       }
     }
 
     fetchMenuItemsAndOptions()
-
-    // 🏬 Fetch Store Open/Closed Settings and listen for realtime updates
-    getStoreSettings().then((settings) => {
-      setIsStoreOpen(settings.is_open)
-      if (settings.closed_reason) setClosedReason(settings.closed_reason)
-    })
-
-    const storeChannel = supabase
-      .channel(`realtime-store-settings-${Date.now()}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'store_settings' },
-        (payload) => {
-          const updated = payload.new as any
-          if (updated && typeof updated.is_open === 'boolean') {
-            setIsStoreOpen(updated.is_open)
-            if (updated.closed_reason) setClosedReason(updated.closed_reason)
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(storeChannel)
-    }
   }, [])
 
-  const addItem = (item: MenuItem, selected: SelectedOptions, instructions?: string, packaging?: 'dine-in' | 'takeaway') => {
-    const key = `${item.id}-${optionsKey(selected, instructions, packaging)}`
+  const addItem = (item: MenuItem, selected: SelectedOptions, instructions?: string) => {
+    const key = `${item.id}-${optionsKey(selected, instructions)}`
     setCart((prev) => ({
       ...prev,
-      [key]: { item, selected, instructions, packaging, quantity: (prev[key]?.quantity ?? 0) + 1 },
+      [key]: { item, selected, instructions, quantity: (prev[key]?.quantity ?? 0) + 1 },
     }))
   }
 
@@ -254,8 +117,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
       const key = Object.keys(prev).find(
         (k) =>
           prev[k].item.id === entry.item.id &&
-          optionsKey(prev[k].selected, prev[k].instructions, prev[k].packaging) ===
-            optionsKey(entry.selected, entry.instructions, entry.packaging)
+          optionsKey(prev[k].selected, prev[k].instructions) === optionsKey(entry.selected, entry.instructions)
       )
       if (!key) return prev
       const next = { ...prev }
@@ -319,84 +181,63 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-4xl px-4 sm:px-6 lg:px-8 pb-28">
-      {/* Top Banner / Hero Card */}
-      <header className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-red-900 via-red-800 to-amber-950 p-6 text-white shadow-xl shadow-red-950/20 border border-amber-500/20">
-        {/* Subtle Decorative Background Glow */}
-        <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-amber-500/20 blur-3xl" />
-        <div className="pointer-events-none absolute -left-12 -bottom-12 h-44 w-44 rounded-full bg-red-600/30 blur-3xl" />
+      <header className="flex items-start justify-between gap-4 px-5 pb-4 pt-8">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-display text-xs font-semibold uppercase tracking-widest text-accent-foreground">ร้านแม่แต๋</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+              <UtensilsCrossed className="h-3 w-3" /> โต๊ะ {tableId}
+            </span>
+          </div>
+          <h1 className="mt-1 font-display text-3xl font-bold text-foreground text-balance">ก๋วยเตี๋ยว &amp; ข้าว</h1>
+          <p className="mt-2 text-pretty text-muted-foreground">รสชาติต้นตำรับ เส้นเหนียวนุ่ม น้ำซุปเข้มข้น พร้อมเสิร์ฟความอร่อยถึงโต๊ะคุณ</p>
+        </div>
 
-        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 border border-amber-300/30 px-3 py-0.5 text-xs font-bold text-amber-200 backdrop-blur-xs">
-                ✨ ร้านเด็ดสูตรต้นตำรับ
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 border border-white/25 px-3 py-0.5 text-xs font-bold text-white shadow-xs">
-                <UtensilsCrossed className="h-3 w-3 text-amber-300" /> โต๊ะ {tableId}
-              </span>
-              {!isStoreOpen && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-red-500/80 border border-red-300/50 px-3 py-0.5 text-xs font-bold text-white animate-pulse shadow-xs">
-                  <Moon className="h-3 w-3" /> 🔴 ร้านปิดรับออเดอร์
-                </span>
+        <div className="flex items-center gap-2">
+          {userRole && (
+            <div className="flex flex-col gap-1 sm:flex-row">
+              {userRole === 'admin' && (
+                <a
+                  href="/admin"
+                  className="inline-flex items-center gap-1 rounded-2xl bg-primary/10 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/20"
+                >
+                  <Shield className="h-3.5 w-3.5" /> Admin
+                </a>
               )}
+              <a
+                href="/staff"
+                className="inline-flex items-center gap-1 rounded-2xl bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground hover:bg-secondary/80"
+              >
+                <UserCheck className="h-3.5 w-3.5" /> Staff
+              </a>
             </div>
+          )}
 
-            <h1 className="font-display text-3xl sm:text-4xl font-black tracking-tight text-white drop-shadow-sm">
-              ร้านแม่แต๋ <span className="text-amber-300 text-2xl sm:text-3xl font-normal">| ก๋วยเตี๋ยว &amp; เครื่องดื่ม</span>
-            </h1>
-
-            <p className="text-xs sm:text-sm text-amber-100/85 leading-relaxed max-w-xl">
-              สูตรลับน้ำซุปหอมเข้มข้น เส้นเหนียวนุ่ม หมูและเนื้อตุ๋นยาจีนเปื่อยละมุน พร้อมเครื่องดื่มสดชื่น
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 self-end sm:self-center">
-            <button
-              type="button"
-              onClick={() => setSummaryOpen(true)}
-              aria-label="ดูสรุปรายการอาหารและค่าใช้จ่าย"
-              className="flex items-center gap-2 rounded-2xl bg-white/20 border border-white/30 px-3.5 py-2.5 text-white hover:bg-white/30 transition-all active:scale-95 shadow-xs cursor-pointer"
-            >
-              <Receipt className="h-4 w-4" />
-              <span className="text-xs font-bold">บิล / ประวัติสั่ง</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setSummaryOpen(true)}
+            aria-label="ดูสรุปรายการอาหารและค่าใช้จ่าย"
+            className="mt-0 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card text-primary shadow-sm ring-1 ring-border transition-transform active:scale-95"
+          >
+            <Receipt className="h-5 w-5" />
+          </button>
         </div>
       </header>
 
-      {/* Store Closed Warning Banner */}
-      {!isStoreOpen && (
-        <div className="mt-4 flex items-center gap-3 rounded-2xl bg-destructive/10 border-2 border-destructive/30 p-4 text-destructive shadow-sm">
-          <AlertCircle className="h-6 w-6 shrink-0 text-destructive animate-bounce" />
-          <div className="text-xs sm:text-sm">
-            <p className="font-bold text-destructive">🌙 ขณะนี้ร้านแม่แต๋ปิดรับออเดอร์ชั่วคราว</p>
-            <p className="text-muted-foreground mt-0.5">{closedReason} (เวลาเปิด 9:00 - 16:00 น. หยุดวันเสาร์)</p>
-          </div>
-        </div>
-      )}
-
-      {/* Category selector */}
-      <nav aria-label="หมวดหมู่อาหาร" className="sticky top-2 z-30 mt-4">
-        <ul className="flex gap-2 overflow-x-auto rounded-2xl bg-card/90 p-2 shadow-lg backdrop-blur-md border border-border scrollbar-none">
-          {categories.map((cat) => {
-            const isActive = activeCategory === cat.id
-            return (
-              <li key={cat.id} className="shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setActiveCategory(cat.id)}
-                  aria-pressed={isActive}
-                  className={`rounded-xl px-4 py-2 text-xs font-bold transition-all duration-200 cursor-pointer ${
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]'
-                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              </li>
-            )
-          })}
+      <nav aria-label="หมวดหมู่เมนู" className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
+        <ul className="flex gap-2 overflow-x-auto px-5 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {categories.map((cat) => (
+            <li key={cat.id}>
+              <button
+                type="button"
+                onClick={() => setActiveCategory(cat.id)}
+                aria-pressed={cat.id === activeCategory}
+                className={`whitespace-nowrap rounded-full px-5 py-2 font-display text-base font-semibold ${cat.id === activeCategory ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
+              >
+                {cat.label}
+              </button>
+            </li>
+          ))}
         </ul>
       </nav>
 
@@ -406,7 +247,7 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
             key={item.id}
             item={item}
             quantity={Object.values(cart).filter((x) => x.item.id === item.id).reduce((n, x) => n + x.quantity, 0)}
-            isAvailable={(availabilityMap[item.id] ?? true) && isStoreOpen}
+            isAvailable={availabilityMap[item.id] ?? true}
             onAdd={addItem}
             onRemove={removeItemByMenu}
           />
@@ -417,7 +258,6 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
         lines={lines}
         totalCount={totalCount}
         totalPrice={totalPrice}
-        isStoreOpen={isStoreOpen}
         onAdd={addItem}
         onRemove={removeItem}
         onClear={() => setCart({})}
@@ -460,30 +300,6 @@ export function MenuPage({ tableId = 'T1' }: MenuPageProps) {
               className="mt-5 w-full rounded-full bg-primary py-3 font-display text-sm font-bold text-primary-foreground shadow-sm"
             >
               ตกลง
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Bill Paid Realtime Success Modal (When staff marks paid) */}
-      {billPaidSuccessOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button type="button" onClick={() => setBillPaidSuccessOpen(false)} className="absolute inset-0 bg-foreground/50 backdrop-blur-sm" />
-          <div className="relative z-10 w-full max-w-sm rounded-3xl bg-card p-6 text-center shadow-2xl border border-border">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600">
-              <CheckCircle2 className="h-10 w-10 animate-bounce" />
-            </div>
-            <h2 className="mt-4 font-display text-2xl font-bold text-card-foreground">ชำระเงินเรียบร้อยแล้ว!</h2>
-            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-              แม่ค้าได้รับการชำระเงินและปิดบิลเรียบร้อยแล้วครับ<br />
-              ขอบคุณที่มาอุดหนุน <span className="font-bold text-primary">ร้านแม่แต๋</span> ครับ 🙏🍜✨
-            </p>
-            <button
-              type="button"
-              onClick={() => setBillPaidSuccessOpen(false)}
-              className="mt-6 w-full rounded-full bg-primary py-3 font-display text-sm font-bold text-primary-foreground shadow-md transition-transform active:scale-95"
-            >
-              ตกลง / สั่งอาหารใหม่
             </button>
           </div>
         </div>

@@ -287,30 +287,39 @@ export default function StaffPage() {
 
       if (orderErr) throw orderErr
 
-      // 2. Insert order items with options and instructions
-      const orderItems = posCart.map((c) => {
-        const optionList = Object.values(c.selectedOptions)
-          .flat()
-          .filter(Boolean)
-          .map((o) => ({
-            id: o.id,
-            name: o.label,
-            extra_price: o.price || 0,
-          }))
+      // 2. Insert order items & order item options
+      for (const c of posCart) {
+        const { data: orderItem, error: itemErr } = await supabase
+          .from('order_items')
+          .insert({
+            order_id: newOrder.id,
+            name: c.menuItem.name,
+            price: c.unitPrice,
+            qty: c.qty,
+          })
+          .select()
+          .single()
 
-        return {
-          order_id: newOrder.id,
-          menu_item_id: c.menuItem.id,
-          name: c.menuItem.name,
-          price: c.unitPrice,
-          qty: c.qty,
-          options: optionList.length > 0 ? optionList : null,
-          instructions: c.instructions || null,
+        if (itemErr) throw itemErr
+
+        if (orderItem) {
+          const optionList = Object.values(c.selectedOptions).flat().filter(Boolean)
+          for (const opt of optionList) {
+            await supabase.from('order_item_options').insert({
+              order_item_id: orderItem.id,
+              name: opt.label,
+              extra_price: opt.price || 0,
+            })
+          }
+          if (c.instructions && c.instructions.trim()) {
+            await supabase.from('order_item_options').insert({
+              order_item_id: orderItem.id,
+              name: `📝 ${c.instructions.trim()}`,
+              extra_price: 0,
+            })
+          }
         }
-      })
-
-      const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
-      if (itemsErr) throw itemsErr
+      }
 
       // Announce sound and refresh
       playOrderSound(posTableId === 'takeaway' ? 'กลับบ้าน' : posTableId)
